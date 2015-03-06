@@ -1,16 +1,18 @@
-
-#    Copyright 2014 Philippe THIRION
+#    Copyright 2015 Pietro Bertera <pietro@bertera.it>
+#
+#    This work is based on the https://github.com/tirfil/PySipProxy
+#    from Philippe THIRION.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
-
+#
 #    This program is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
-
+#
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -18,17 +20,14 @@ import SocketServer
 import re
 import string
 import socket
-#import threading
+import optparse
 import sys
 import time
 import hashlib
 import random
 import logging
 
-HOST, PORT = '0.0.0.0', 5060
-PASSWORD = "protected"
-DEF_EXPIRES = 3600
-
+# Regexp matching SIP messages:
 rx_register = re.compile("^REGISTER")
 rx_invite = re.compile("^INVITE")
 rx_ack = re.compile("^ACK")
@@ -79,18 +78,31 @@ topvia = ""
 registrar = {}
 auth = {}
 
+def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s'):
+    l = logging.getLogger(logger_name)
+    l.setLevel(level)
+    formatter = logging.Formatter(str_format)
+    if log_file:
+        fileHandler = logging.FileHandler(log_file, mode='w')
+        fileHandler.setFormatter(formatter)
+        l.addHandler(fileHandler)
+    else: 
+        streamHandler = logging.StreamHandler()
+        streamHandler.setFormatter(formatter)
+        l.addHandler(streamHandler)
+
 def hexdump( chars, sep, width ):
     while chars:
         line = chars[:width]
         chars = chars[width:]
         line = line.ljust( width, '\000' )
-        logging.debug("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
+        sip_logger.debug("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
 
 def quotechars( chars ):
 	return ''.join( ['.', c][c.isalnum()] for c in chars )
 
 def showtime():
-    logging.debug(time.strftime("(%H:%M:%S)", time.localtime()))
+    main_logger.debug(time.strftime("(%H:%M:%S)", time.localtime()))
     
 def generateNonce(n):
     str = "0123456789abcdef"
@@ -112,29 +124,30 @@ def checkAuthorization(authorization, password, nonce):
             hash[key]=value
     # check nonce (response/request)
     if hash["nonce"] != nonce:
-        logging.warning("Incorrect nonce")
+        main_logger.warning("Authentication: Incorrect nonce")
         return False
-    a1="%s:%s:%s" % (hash["username"],hash["realm"],password)
+
+    a1="%s:%s:%s" % (hash["username"],hash["realm"], password)
     a2="REGISTER:%s" % hash["uri"]
     ha1 = hashlib.md5(a1).hexdigest()
     ha2 = hashlib.md5(a2).hexdigest()
     b = "%s:%s:%s" % (ha1,nonce,ha2)
     expected = hashlib.md5(b).hexdigest()
     if expected == hash["response"]:
-        logging.debug("Authentication succeeded")
+        main_logger.debug("Authentication: succeeded")
         return True
-    logging.warning("expected= %s" % expected)
-    logging.warning("response= %s" % hash["response"])
+    main_logger.warning("Authentication: expected= %s" % expected)
+    main_logger.warning("Authentication: response= %s" % hash["response"])
     return False
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
     
     def debugRegister(self):
-        logging.debug("*** REGISTRAR ***")
-        logging.debug("*****************")
+        main_logger.debug("*** REGISTRAR ***")
+        main_logger.debug("*****************")
         for key in registrar.keys():
-            logging.debug("%s -> %s" % (key,registrar[key][0]))
-        logging.debug("*****************")
+            main_logger.debug("%s -> %s" % (key,registrar[key][0]))
+        main_logger.debug("*****************")
     
     def changeRequestUri(self):
         # change request uri
@@ -144,10 +157,10 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             uri = md.group(2)
             if registrar.has_key(uri):
                 uri = "sip:%s" % registrar[uri][0]
+                main_logger.debug("changeRequestUri: %s -> %s" % ( self.data[0] , "%s %s SIP/2.0" % (method,uri)))
                 self.data[0] = "%s %s SIP/2.0" % (method,uri)
             else:
-                logging.debug("URI not found in Registrar: %s" % uri)
-                logging.debug("Registrar: %s" % registrar)
+                main_logger.debug("URI not found in Registrar: %s leaving the URI unchanged" % uri)
 
     def removeRouteHeader(self):
         # delete Route
@@ -196,7 +209,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             return True
         else:
             del registrar[uri]
-            logging.warning("registration for %s has expired" % uri)
+            main_logger.warning("Registration for %s has expired" % uri)
             return False
     
     def getSocketInfo(self,uri):
@@ -254,9 +267,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         data.append("")
         text = string.join(data,"\r\n")
         self.socket.sendto(text,self.client_address)
-        showtime()
-        logging.info("<<< %s" % data[0])
-        logging.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
+        #showtime()
+        sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
         
     def processRegister(self):
         fromm = ""
@@ -278,11 +290,13 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             if rx_contact.search(line) or rx_ccontact.search(line):
                 md = rx_uri.search(line)
                 if md:
-                    contact = md.group(2)
+                    contact = "%s@%s" % (md.group(1), md.group(2))
+                    main_logger.debug("Registration: Contact from rx_uri regex: %s" % contact)
                 else:
                     md = rx_addr.search(line)
                     if md:
                         contact = md.group(1)
+                        main_logger.debug("Registration: Contact from rx_addr regex: %s" % contact)
                 md = rx_contact_expires.search(line)
                 if md:
                     contact_expires = md.group(1)
@@ -310,7 +324,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 
         if len(authorization)> 0 and auth.has_key(fromm):
             nonce = auth[fromm]
-            if not checkAuthorization(authorization,PASSWORD,nonce):
+            if not checkAuthorization(authorization,options.password,nonce):
                 self.sendResponse("403 Forbidden")
                 return
         else:
@@ -332,7 +346,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendResponse("200 0K")
                 return
         elif expires == None:
-            expires = DEF_EXPIRES
+            expires = options.expires
             header = "Expires: %s" % expires
             self.data.insert(6, header)
         
@@ -341,25 +355,23 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             validity = now + expires
             
     
-        logging.info("From: %s - Contact: %s" % (fromm,contact))
-        logging.debug("Client address: %s:%s" % self.client_address)
-        logging.debug("Expires= %d" % expires)
+        main_logger.info("Registration: From: %s - Contact: %s" % (fromm,contact))
+        main_logger.debug("Registration: Client address: %s:%s" % self.client_address)
+        main_logger.debug("Registration: Expires= %d" % expires)
         registrar[fromm]=[contact,self.socket,self.client_address,validity]
         self.debugRegister()
         self.sendResponse("200 0K")
         
     def processInvite(self):
-        logging.debug("-----------------")
-        logging.debug(" INVITE received ")
-        logging.debug("-----------------")
+        main_logger.debug("INVITE received")
         origin = self.getOrigin()
         if len(origin) == 0 or not registrar.has_key(origin):
-            logging.debug("Origin not found: %s" % origin)
+            main_logger.debug("Invite: Origin not found: %s" % origin)
             self.sendResponse("400 Bad Request")
             return
         destination = self.getDestination(with_params=True)
         if len(destination) > 0:
-            logging.info("destination %s" % destination)
+            main_logger.info("Invite: destination %s" % destination)
             if registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.changeRequestUri()
@@ -369,21 +381,21 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
                 socket.sendto(text , claddr)
-                showtime()
-                logging.info("<<< %s" % data[0])
-                logging.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
+                #showtime()
+                main_logger.debug("Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
+                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                #sip_logger.info("<<< %s" % data[0])
+                #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
             else:
                 self.sendResponse("480 Temporarily Unavailable")
         else:
             self.sendResponse("500 Server Internal Error")
                 
     def processAck(self):
-        logging.debug("--------------")
-        logging.debug(" ACK received ")
-        logging.debug("--------------")
+        main_logger.debug("ACK received")
         destination = self.getDestination()
         if len(destination) > 0:
-            logging.info("destination %s" % destination)
+            main_logger.info("Ack: destination %s" % destination)
             if registrar.has_key(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 #self.changeRequestUri()
@@ -393,34 +405,34 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
                 socket.sendto(text,claddr)
-                showtime()
-                logging.info("<<< %s" % data[0])
-                logging.debug( "---\n<< server send [%d]:\n%s\n---" % (len(text),text))
+                #showtime()
+                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                #main_logger.info("<<< %s" % data[0])
+                #main_logger.debug( "---\n<< server send [%d]:\n%s\n---" % (len(text),text))
                 
     def processNonInvite(self):
-        logging.debug("----------------------")
-        logging.debug(" NonInvite received   ")
-        logging.debug("----------------------")
+        main_logger.debug("NonInvite received: %s" % self.data[0])
         origin = self.getOrigin()
         if len(origin) == 0 or not registrar.has_key(origin):
-            logging.debug("Origin not found: %s" % origin)
+            main_logger.debug("NonInvite: Origin not found: %s" % origin)
             self.sendResponse("400 Bad Request")
             return
         destination = self.getDestination()
         if len(destination) > 0:
-            logging.info("destination %s" % destination)
+            main_logger.info("NonInvite: destination %s" % destination)
             if registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
-                #self.changeRequestUri()
+                self.changeRequestUri()
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
                 #insert Record-Route
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
                 socket.sendto(text , claddr)
-                showtime()
-                logging.info("<<< %s" % data[0])
-                logging.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))    
+                #showtime()
+                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                #sip_logger.info("<<< %s" % data[0])
+                #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))    
             else:
                 self.sendResponse("406 Not Acceptable")
         else:
@@ -429,16 +441,18 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     def processCode(self):
         origin = self.getOrigin()
         if len(origin) > 0:
-            logging.debug("origin %s" % origin)
+            main_logger.debug("Code: origin %s" % origin)
             if registrar.has_key(origin):
                 socket,claddr = self.getSocketInfo(origin)
                 self.data = self.removeRouteHeader()
+                main_logger.debug("Code received: %s" % self.data[0])
                 data = self.removeTopVia()
                 text = string.join(data,"\r\n")
                 socket.sendto(text,claddr)
-                showtime()
-                logging.info("<<< %s" % data[0])
-                logging.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
+                #showtime()
+                #sip_logger.info("<<< %s" % data[0])
+                #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
+                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
                 
                 
     def processRequest(self):
@@ -478,7 +492,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             elif rx_code.search(request_uri):
                 self.processCode()
             else:
-                logging.error("request_uri %s" % request_uri)          
+                main_logger.error("request_uri %s" % request_uri)          
                 #print "message %s unknown" % self.data
     
     def handle(self):
@@ -488,28 +502,61 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         self.socket = self.request[1]
         request_uri = self.data[0]
         if rx_request_uri.search(request_uri) or rx_code.search(request_uri):
-            showtime()
-            logging.info(">>> %s" % request_uri)
-            logging.debug("---\n>> server received [%d]:\n%s\n---" %  (len(data),data))
-            logging.debug("Received from %s:%d" % self.client_address)
+            #showtime()
+            #sip_logger.info(">>> %s" % request_uri)
+            sip_logger.debug("Received from %s:%d (%d bytes):\n%s" %  (self.client_address[0], self.client_address[1], len(data), data))
+            #sip_logger.debug("Received from %s:%d" % self.client_address)
             self.processRequest()
         else:
             if len(data) > 4:
-                showtime()
-                logging.warning("---\n>> server received [%d]:" % len(data))
+                #showtime()
+                sip_logger.warning("Received from %s:%d (%d bytes):\n" %  (self.client_address[0], self.client_address[1], len(data)))
                 hexdump(data,' ',16)
-                logging.warning("---")
+                sip_logger.warning("---")
 
 if __name__ == "__main__": 
-    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',filename='proxy.log',level=logging.DEBUG,datefmt='%H:%M:%S')
-    logging.info(time.strftime("%a, %d %b %Y %H:%M:%S ", time.localtime()))
-    hostname = socket.gethostname()
-    logging.info(hostname)
-    ipaddress = socket.gethostbyname(hostname)
-    if ipaddress == "127.0.0.1":
-        ipaddress = sys.argv[1]
-    logging.info(ipaddress)
-    recordroute = "Record-Route: <sip:%s:%d;lr>" % (ipaddress,PORT)
-    topvia = "Via: SIP/2.0/UDP %s:%d" % (ipaddress,PORT)
-    server = SocketServer.UDPServer((HOST, PORT), UDPHandler)
-    server.serve_forever()
+    usage = """%prog [OPTIONS]"""
+    opt = optparse.OptionParser(usage=usage)
+    opt.add_option('-d', dest='debug', default=False, action='store_true',
+            help='run in debug mode')
+    opt.add_option('-i', dest='ip_address', type='string', default="127.0.0.1",
+            help='Specify ip address to bind on (default: 127.0.0.1)')
+    opt.add_option('-p', dest='port', type='int', default=5060,
+            help='Specify the UDP port (default: 5060)')
+    opt.add_option('-s', dest='sip_logfile', type='string', default='sip.log',
+            help='Specify the SIP messages log file (default: sip.log)')
+    opt.add_option('-l', dest='logfile', type='string', default=None,
+            help='Specify the log file (default: log to stdout)')
+    opt.add_option('-e', dest='expires', type='int', default=3600,
+            help='Default registration expires (default: 3600)')
+    opt.add_option('-P', dest='password', type='string', default='protected',
+            help='Athentication password (default: protected)')
+    
+    options, args = opt.parse_args(sys.argv[1:])
+
+    if options.debug == True:
+        level=logging.DEBUG
+    else:
+        level=logging.INFO
+    setup_logger('main_logger', options.logfile, level)
+    setup_logger('sip_logger', options.sip_logfile, level, str_format='%(asctime)s %(message)s')    
+    
+    main_logger = logging.getLogger('main_logger')
+    sip_logger = logging.getLogger('sip_logger')
+    
+    main_logger.info(time.strftime("Starting proxy at %a, %d %b %Y %H:%M:%S ", time.localtime()))
+    recordroute = "Record-Route: <sip:%s:%d;lr>" % (options.ip_address, options.port)
+    topvia = "Via: SIP/2.0/UDP %s:%d" % (options.ip_address, options.port)
+    
+    main_logger.debug("Using the Record-Route header: %s" % recordroute) 
+    main_logger.debug("Using the top Via header: %s" % topvia) 
+    main_logger.debug("Writing SIP messages in %s log file" % options.sip_logfile)
+    main_logger.debug("Authentication password: %s" % options.password)
+    main_logger.debug("Logfile: %s" % options.logfile)
+    
+    server = SocketServer.UDPServer((options.ip_address, options.port), UDPHandler)
+    try:
+        main_logger.info("Sarting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
+        server.serve_forever()
+    except KeyboardInterrupt:
+        main_logger.info("Exiting.") 
