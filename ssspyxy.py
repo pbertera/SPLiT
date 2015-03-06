@@ -523,8 +523,8 @@ if __name__ == "__main__":
             help='Specify ip address to bind on (default: 127.0.0.1)')
     opt.add_option('-p', dest='port', type='int', default=5060,
             help='Specify the UDP port (default: 5060)')
-    opt.add_option('-s', dest='sip_logfile', type='string', default='sip.log',
-            help='Specify the SIP messages log file (default: sip.log)')
+    opt.add_option('-s', dest='sip_logfile', type='string', default=None,
+            help='Specify the SIP messages log file (default: log to stdout)')
     opt.add_option('-l', dest='logfile', type='string', default=None,
             help='Specify the log file (default: log to stdout)')
     opt.add_option('-e', dest='expires', type='int', default=3600,
