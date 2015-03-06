@@ -58,4 +58,7 @@ On windows (in a cmd.exe prompt):
       -l LOGFILE      Specify the log file (default: log to stdout)
       -e EXPIRES      Default registration expires (default: 3600)
       -P PASSWORD     Athentication password (default: protected)
-    
+
+# Acknowledgment
+
+This work is based on the https://github.com/tirfil/PySipProxy from Philippe THIRION.
