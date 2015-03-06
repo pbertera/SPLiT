@@ -54,8 +54,8 @@ rx_uri = re.compile("sip:([^@]*)@([^>$]*)")
 rx_addr = re.compile("sip:([^ ;>$]*)")
 #rx_addrport = re.compile("([^:]*):(.*)")
 rx_code = re.compile("^SIP/2.0 ([^ ]*)")
-rx_invalid = re.compile("^192\.168")
-rx_invalid2 = re.compile("^10\.")
+#rx_invalid = re.compile("^192\.168")
+#rx_invalid2 = re.compile("^10\.")
 #rx_cseq = re.compile("^CSeq:")
 #rx_callid = re.compile("Call-ID: (.*)$")
 #rx_rr = re.compile("^Record-Route:")
@@ -311,11 +311,11 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #print authorization
             index += 1
 
-        if rx_invalid.search(contact) or rx_invalid2.search(contact):
-            if registrar.has_key(fromm):
-                del registrar[fromm]
-            self.sendResponse("488 Not Acceptable Here")    
-            return
+        #if rx_invalid.search(contact) or rx_invalid2.search(contact):
+        #    if registrar.has_key(fromm):
+        #        del registrar[fromm]
+        #    self.sendResponse("488 Not Acceptable Here")    
+        #    return
             
         # remove Authorization header for response
         if auth_index > 0:
@@ -556,7 +556,7 @@ if __name__ == "__main__":
     
     server = SocketServer.UDPServer((options.ip_address, options.port), UDPHandler)
     try:
-        main_logger.info("Sarting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
+        main_logger.info("Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
         server.serve_forever()
     except KeyboardInterrupt:
         main_logger.info("Exiting.") 
