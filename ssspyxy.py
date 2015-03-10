@@ -63,6 +63,7 @@ rx_request_uri = re.compile("^([^ ]*) sip:([^ ]*?)(;.*)* SIP/2.0")
 rx_route = re.compile("^Route:")
 rx_contentlength = re.compile("^Content-Length:")
 rx_ccontentlength = re.compile("^l:")
+rx_contenttype = re.compile("^Content-Type:")
 rx_via = re.compile("^Via:")
 rx_cvia = re.compile("^v:")
 rx_branch = re.compile(";branch=([^;]*)")
@@ -162,14 +163,25 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             else:
                 main_logger.debug("URI not found in Registrar: %s leaving the URI unchanged" % uri)
 
-    def removeRouteHeader(self):
-        # delete Route
+    def removeHeader(self, regex):
+        main_logger.debug("Removing header with regex %s" % regex.pattern)
         data = []
         for line in self.data:
-            if not rx_route.search(line):
+            if not regex.search(line):
                 data.append(line)
+            else:
+                main_logger.debug("Removed %s" % line)
         return data
-    
+
+    def removeRouteHeader(self):
+        return self.removeHeader(rx_route)
+
+    def removeContact(self):
+        return self.removeHeader(rx_contact)
+
+    def removeContentType(self):
+        return self.removeHeader(rx_contenttype)
+
     def addTopVia(self):
         branch= ""
         data = []
@@ -361,7 +373,54 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         registrar[fromm]=[contact,self.socket,self.client_address,validity]
         self.debugRegister()
         self.sendResponse("200 0K")
-        
+    
+    def is_redirect(function):
+        def _is_redirect(self, *args, **kwargs):
+            if options.redirect:
+                main_logger.debug("Acting as a redirect server")
+                
+                md = rx_request_uri.search(self.data[0])
+                if md:
+                    method = md.group(1)
+                    uri = md.group(2)
+                else:
+                    if rx_code.search(self.data[0]):
+                        main_logger.debug("Received code, ignoring")
+                    return
+                if method.upper() == "ACK":
+                    main_logger.debug("Received ACK, ignoring")
+                    return
+                if method.upper() != "INVITE":
+                    main_logger.debug("Method not allowed")
+                    self.sendResponse("405 Method Not Allowed")
+                    return
+
+                origin = self.getOrigin()
+                if len(origin) == 0 or not registrar.has_key(origin):
+                    main_logger.debug("Invite: Origin not found: %s" % origin)
+                    self.sendResponse("400 Bad Request")
+                    return
+                destination = self.getDestination(with_params=True)
+                if len(destination) > 0:
+                    main_logger.debug("Destination: %s" % destination)
+                    if registrar.has_key(destination) and self.checkValidity(destination):
+                        contact = registrar[destination][0]
+                        header = "Contact: <sip:%s>" % contact
+                        self.data = self.removeContact()
+                        self.data = self.removeContentType()
+                        main_logger.debug("Destination %s" % header)
+                        self.data.insert(6,header)
+                        self.sendResponse("302 Moved temporarily")
+                        main_logger.debug("Destination Contact: %s" % contact)
+                    else:
+                        main_logger.info("Destination not found in registrar")
+                        self.sendResponse("404 Not Found")
+            else:
+                main_logger.debug("Running in proxy mode")
+            return function(self)
+        return _is_redirect
+
+    @is_redirect
     def processInvite(self):
         main_logger.debug("INVITE received")
         origin = self.getOrigin()
@@ -375,22 +434,19 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             if registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.changeRequestUri()
-                self.data = self.addTopVia()
+                data = self.addTopVia()
                 data = self.removeRouteHeader()
-                #insert Record-Route
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
                 socket.sendto(text , claddr)
-                #showtime()
                 main_logger.debug("Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
                 sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
-                #sip_logger.info("<<< %s" % data[0])
-                #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
             else:
                 self.sendResponse("480 Temporarily Unavailable")
         else:
             self.sendResponse("500 Server Internal Error")
                 
+    @is_redirect
     def processAck(self):
         main_logger.debug("ACK received")
         destination = self.getDestination()
@@ -410,6 +466,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #main_logger.info("<<< %s" % data[0])
                 #main_logger.debug( "---\n<< server send [%d]:\n%s\n---" % (len(text),text))
                 
+    @is_redirect
     def processNonInvite(self):
         main_logger.debug("NonInvite received: %s" % self.data[0])
         origin = self.getOrigin()
@@ -431,20 +488,19 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 socket.sendto(text , claddr)
                 #showtime()
                 sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
-                #sip_logger.info("<<< %s" % data[0])
-                #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))    
             else:
-                self.sendResponse("406 Not Acceptable")
+                self.sendResponse("404 Not found")
         else:
             self.sendResponse("500 Server Internal Error")
     
+    @is_redirect
     def processCode(self):
         origin = self.getOrigin()
         if len(origin) > 0:
             main_logger.debug("Code: origin %s" % origin)
             if registrar.has_key(origin):
                 socket,claddr = self.getSocketInfo(origin)
-                self.data = self.removeRouteHeader()
+                data = self.removeRouteHeader()
                 main_logger.debug("Code received: %s" % self.data[0])
                 data = self.removeTopVia()
                 text = string.join(data,"\r\n")
@@ -483,7 +539,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendResponse("200 0K")
                 #self.processNonInvite()
             elif rx_subscribe.search(request_uri):
-                self.sendResponse("200 0K")
+                self.processNonInvite()
+                #self.sendResponse("200 0K")
             elif rx_publish.search(request_uri):
                 self.sendResponse("200 0K")
             elif rx_notify.search(request_uri):
@@ -516,9 +573,13 @@ class UDPHandler(SocketServer.BaseRequestHandler):
 
 if __name__ == "__main__": 
     usage = """%prog [OPTIONS]"""
+    
     opt = optparse.OptionParser(usage=usage)
+    
     opt.add_option('-d', dest='debug', default=False, action='store_true',
-            help='run in debug mode')
+            help='Run in debug mode')
+    opt.add_option('-r', dest='redirect', default=False, action='store_true',
+            help='Act as a redirect server')
     opt.add_option('-i', dest='ip_address', type='string', default="127.0.0.1",
             help='Specify ip address to bind on (default: 127.0.0.1)')
     opt.add_option('-p', dest='port', type='int', default=5060,
@@ -548,7 +609,10 @@ if __name__ == "__main__":
     recordroute = "Record-Route: <sip:%s:%d;lr>" % (options.ip_address, options.port)
     topvia = "Via: SIP/2.0/UDP %s:%d" % (options.ip_address, options.port)
     
-    main_logger.debug("Using the Record-Route header: %s" % recordroute) 
+    if options.redirect:
+        main_logger.debug("Working in redirect server mode")
+    else:
+        main_logger.debug("Using the Record-Route header: %s" % recordroute) 
     main_logger.debug("Using the top Via header: %s" % topvia) 
     main_logger.debug("Writing SIP messages in %s log file" % options.sip_logfile)
     main_logger.debug("Authentication password: %s" % options.password)

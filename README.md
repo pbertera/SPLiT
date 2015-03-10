@@ -9,6 +9,7 @@ ssspyxy is developed with hackability in mind, the main aim is to reproduce SIP 
 ## Main features
 
 - Registrar with challenge authentication
+- Proxy or Redirect server mode
 - Proxy of SIP messages between UA
 - UDP only suppport
 - Self contained and portable: tested on OS-X, Linux, Windows
@@ -43,21 +44,21 @@ On windows (in a cmd.exe prompt):
     2015-03-06 15:38:00,156 DEBUG Logfile: None
     2015-03-06 15:38:00,157 INFO Starting serving SIP requests on 172.16.18.14:5060, press CTRL-C for exit.
     
-
 ### Command line options
 
     pietro$ python ssspyxy.py -h
     Usage: ssspyxy.py [OPTIONS]
     
     Options:
-      -h, --help      show this help message and exit
-      -d              run in debug mode
-      -i IP_ADDRESS   Specify ip address to bind on (default: 127.0.0.1)
-      -p PORT         Specify the UDP port (default: 5060)
-      -s SIP_LOGFILE  Specify the SIP messages log file (default: sip.log)
-      -l LOGFILE      Specify the log file (default: log to stdout)
-      -e EXPIRES      Default registration expires (default: 3600)
-      -P PASSWORD     Athentication password (default: protected)
+        -h, --help      show this help message and exit
+        -d              Run in debug mode
+        -r              Act as a redirect server
+        -i IP_ADDRESS   Specify ip address to bind on (default: 127.0.0.1)
+        -p PORT         Specify the UDP port (default: 5060)
+        -s SIP_LOGFILE  Specify the SIP messages log file (default: log to stdout)
+        -l LOGFILE      Specify the log file (default: log to stdout)
+        -e EXPIRES      Default registration expires (default: 3600)
+        -P PASSWORD     Athentication password (default: protected)
 
 # Acknowledgment
 
