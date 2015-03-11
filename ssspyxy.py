@@ -26,6 +26,7 @@ import time
 import hashlib
 import random
 import logging
+import threading
 
 # Regexp matching SIP messages:
 rx_register = re.compile("^REGISTER")
@@ -79,11 +80,29 @@ topvia = ""
 registrar = {}
 auth = {}
 
-def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s'):
+class WidgetLogger(logging.Handler):
+    def __init__(self, widget):
+        logging.Handler.__init__(self)
+        #self.setLevel(logging.INFO)
+        self.widget = widget
+        self.widget.config(state='disabled')
+
+    def emit(self, record):
+        self.widget.config(state='normal')
+        # Append message (record) to the widget
+        self.widget.insert(END, self.format(record).replace("\r", "").rstrip('\n') + '\n\n')
+        self.widget.see(END)  # Scroll to the bottom
+        self.widget.config(state='disabled')
+
+def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s', widget=None):
     l = logging.getLogger(logger_name)
     l.setLevel(level)
     formatter = logging.Formatter(str_format)
-    if log_file:
+    if widget:
+        widgetHandler = widget
+        widgetHandler.setFormatter(formatter)
+        l.addHandler(widgetHandler)
+    elif log_file:
         fileHandler = logging.FileHandler(log_file, mode='w')
         fileHandler.setFormatter(formatter)
         l.addHandler(fileHandler)
@@ -141,6 +160,11 @@ def checkAuthorization(authorization, password, nonce):
     main_logger.warning("Authentication: response= %s" % hash["response"])
     return False
 
+class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
+    def __init__(self, server_address, RequestHandlerClass, sip_logger):
+        SocketServer.UDPServer.__init__(self, server_address, RequestHandlerClass)
+        self.sip_logger = sip_logger
+
 class UDPHandler(SocketServer.BaseRequestHandler):   
     
     def debugRegister(self):
@@ -149,7 +173,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         for key in registrar.keys():
             main_logger.debug("%s -> %s" % (key,registrar[key][0]))
         main_logger.debug("*****************")
-    
+
     def changeRequestUri(self):
         # change request uri
         md = rx_request_uri.search(self.data[0])
@@ -252,6 +276,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         return origin
         
     def sendResponse(self,code):
+        main_logger.debug("Sending Response %s" % code)
         request_uri = "SIP/2.0 " + code
         self.data[0]= request_uri
         index = 0
@@ -280,9 +305,10 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         text = string.join(data,"\r\n")
         self.socket.sendto(text,self.client_address)
         #showtime()
-        sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
+        self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
         
     def processRegister(self):
+        main_logger.info("Register received: %s" % self.data[0])
         fromm = ""
         contact = ""
         contact_expires = ""
@@ -391,7 +417,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                     main_logger.debug("Received ACK, ignoring")
                     return
                 if method.upper() != "INVITE":
-                    main_logger.debug("Method not allowed")
                     self.sendResponse("405 Method Not Allowed")
                     return
 
@@ -440,7 +465,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 text = string.join(data,"\r\n")
                 socket.sendto(text , claddr)
                 main_logger.debug("Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
-                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
                 self.sendResponse("480 Temporarily Unavailable")
         else:
@@ -448,7 +473,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 
     @is_redirect
     def processAck(self):
-        main_logger.debug("ACK received")
+        main_logger.info("ACK received: %s" % self.data[0])
         destination = self.getDestination()
         if len(destination) > 0:
             main_logger.info("Ack: destination %s" % destination)
@@ -462,21 +487,21 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 text = string.join(data,"\r\n")
                 socket.sendto(text,claddr)
                 #showtime()
-                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 #main_logger.info("<<< %s" % data[0])
                 #main_logger.debug( "---\n<< server send [%d]:\n%s\n---" % (len(text),text))
                 
     @is_redirect
     def processNonInvite(self):
-        main_logger.debug("NonInvite received: %s" % self.data[0])
+        main_logger.info("NonInvite received: %s" % self.data[0])
         origin = self.getOrigin()
         if len(origin) == 0 or not registrar.has_key(origin):
-            main_logger.debug("NonInvite: Origin not found: %s" % origin)
+            main_logger.debug("Origin not found: %s" % origin)
             self.sendResponse("400 Bad Request")
             return
         destination = self.getDestination()
         if len(destination) > 0:
-            main_logger.info("NonInvite: destination %s" % destination)
+            main_logger.info("Destination %s" % destination)
             if registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.changeRequestUri()
@@ -487,7 +512,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 text = string.join(data,"\r\n")
                 socket.sendto(text , claddr)
                 #showtime()
-                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
                 self.sendResponse("404 Not found")
         else:
@@ -495,6 +520,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     
     @is_redirect
     def processCode(self):
+        main_logger.info("Code received: %s" % self.data[0])
         origin = self.getOrigin()
         if len(origin) > 0:
             main_logger.debug("Code: origin %s" % origin)
@@ -508,7 +534,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #showtime()
                 #sip_logger.info("<<< %s" % data[0])
                 #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
-                sip_logger.debug("Send to: %s:%d ([%d] bytes):\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
                 
     def processRequest(self):
@@ -561,21 +587,209 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         if rx_request_uri.search(request_uri) or rx_code.search(request_uri):
             #showtime()
             #sip_logger.info(">>> %s" % request_uri)
-            sip_logger.debug("Received from %s:%d (%d bytes):\n%s" %  (self.client_address[0], self.client_address[1], len(data), data))
+            self.server.sip_logger.debug("Received from %s:%d (%d bytes):\n\n%s" %  (self.client_address[0], self.client_address[1], len(data), data))
             #sip_logger.debug("Received from %s:%d" % self.client_address)
             self.processRequest()
         else:
             if len(data) > 4:
                 #showtime()
-                sip_logger.warning("Received from %s:%d (%d bytes):\n" %  (self.client_address[0], self.client_address[1], len(data)))
+                self.server.sip_logger.warning("Received from %s:%d (%d bytes):\n\n" %  (self.client_address[0], self.client_address[1], len(data)))
                 hexdump(data,' ',16)
-                sip_logger.warning("---")
+
+class MainApplication:
+    
+    def __init__(self, root, options, server=None):
+        self.root = root
+        # bring in fron hack
+        self.root.lift()
+        self.root.call('wm', 'attributes', '.', '-topmost', True)
+        self.root.after_idle(self.root.call, 'wm', 'attributes', '.', '-topmost', False)
+        
+        self.server = server
+        self.options = options
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        self.notebook = Notebook(self.root)
+
+        # Main Tab with 2 rows: firts with settings, second with registrar data
+        self.main_frame = Frame(self.notebook)
+        self.main_frame.columnconfigure(0, weight=1)
+        # Settings row doesn't expands
+        self.main_frame.rowconfigure(0, weight=0)
+        # Registrar row will grow
+        self.main_frame.rowconfigure(1, weight=1)
+        
+        # SIP Trace tab with 2 rows: first with controls, second with SIP trace
+        self.sip_frame = Frame(self.notebook)
+        self.sip_frame.columnconfigure(0, weight=1)
+        # first row doesn't expoands
+        self.sip_frame.rowconfigure(0, weight=0)
+        # let the second row grow
+        self.sip_frame.rowconfigure(1, weight=1)
+
+        self.settings_frame = Frame(self.main_frame)
+        self.settings_frame.grid(row=0, column=0, sticky=N, padx=5, pady=5)
+        
+        self.registrar_frame = Frame(self.main_frame)
+        self.registrar_frame.rowconfigure(0, weight=1)
+
+        self.sip_commands_frame = Frame(self.sip_frame)
+        self.sip_commands_frame.grid(row=0, column=0, sticky=N, padx=4, pady=5)
+
+        self.sip_trace_frame = Frame(self.sip_frame)
+        self.sip_trace_frame.grid(row=1, column=0, sticky=NSEW)
+        # let the SIP trace growing
+        self.sip_trace_frame.columnconfigure(0, weight=1)
+        self.sip_trace_frame.rowconfigure(0, weight=1)
+
+        #self.main_frame.rowconfigure(0, weight=1)
+        #self.sip_frame.rowconfigure(0, weight=1)
+
+        self.notebook.add(self.main_frame, text='Main', padding=0)
+        self.notebook.add(self.sip_frame, text='SIP Trace', padding=0)
+        self.notebook.grid(row=0, column=0, sticky=NSEW)       
+
+        self.sip_trace = ScrolledText(self.sip_trace_frame)
+        self.sip_trace.grid(row=0, column=0, sticky=NSEW)
+
+        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=WidgetLogger(self.sip_trace))
+        self.sip_trace_logger = logging.getLogger('sip_widget_logger')
+        sip_logger = self.sip_trace_logger 
+
+        row = 0
+        self.gui_debug = BooleanVar()
+        self.gui_debug.set(self.options.debug)
+        Label(self.settings_frame, text="Debug:").grid(row=row, column=0, sticky=W)
+        Checkbutton(self.settings_frame, variable=self.gui_debug, command=self.gui_debug_action).grid(row=row, column=1, sticky=W)
+        row = row + 1
+
+        self.gui_redirect = BooleanVar()
+        self.gui_redirect.set(self.options.redirect)
+        Label(self.settings_frame, text="Redirect server:").grid(row=row, column=0, sticky=W)
+        Checkbutton(self.settings_frame, variable=self.gui_redirect, command=self.gui_redirect_action).grid(row=row, column=1, sticky=W)
+        row = row + 1
+        
+        self.gui_ip_address = StringVar()
+        self.gui_ip_address.set(self.options.ip_address)
+        Label(self.settings_frame, text="IP Address:").grid(row=row, column=0, sticky=W)
+        Entry(self.settings_frame, textvariable=self.gui_ip_address, width=15).grid(row=row, column=1, sticky=W)
+        row = row + 1
+   
+        self.gui_port = IntVar()
+        self.gui_port.set(self.options.port)
+        Label(self.settings_frame, text="Port:").grid(row=row, column=0, sticky=W)
+        Entry(self.settings_frame, textvariable=self.gui_port, width=5).grid(row=row, column=1, sticky=W)
+        row = row + 1
+ 
+        self.gui_password = StringVar()
+        self.gui_password.set(self.options.password)
+        Label(self.settings_frame, text="Password:").grid(row=row, column=0, sticky=W)
+        Entry(self.settings_frame, textvariable=self.gui_password, width=15).grid(row=row, column=1, sticky=W)
+        row = row + 1
+ 
+        self.control_button = Button(self.settings_frame, text="Run", command=self.run_server)
+        self.control_button.grid(row=row, column=0, sticky=N)
+        self.registrar_button = Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
+        self.registrar_button.grid(row=row, column=1, sticky=N)
+        row = row + 1
+        
+        self.registrar_frame.grid(row=1, column=0, sticky=NS)
+        
+        self.registrar_text = ScrolledText(self.registrar_frame)
+        self.registrar_text.grid(row=0, column=0, sticky=NS)
+        self.registrar_text.config(state='disabled') 
+        # SIP Trace frame
+        row = 0
+        self.sip_trace_clear_button = Button(self.sip_commands_frame, text="Clear", command=self.clear_sip_trace)
+        self.sip_trace_clear_button.grid(row=row, column=0, sticky=N)
+        row = row + 1
+    
+        #self.load_registrar(self.registrar)
+
+        self.notebook.grid(row=0, sticky=NSEW)
+        self.root.wm_protocol("WM_DELETE_WINDOW", self.cleanup_on_exit)
+    
+    def gui_debug_action(self):
+        if self.gui_debug.get():
+            main_logger.debug("Activating Debug")
+            main_logger.setLevel(logging.DEBUG)
+        else:
+            main_logger.debug("Deactivating Debug")
+            main_logger.setLevel(logging.INFO)
+        self.options.debug = self.gui_debug.get()
+
+    def gui_redirect_action(self):
+        if self.gui_redirect.get():
+            main_logger.debug("Activating Redirect server")
+        else:
+            main_logger.debug("Deactivating Redirect Server")
+        self.options.redirect = self.gui_redirect.get()
+
+
+    def cleanup_on_exit(self):
+        self.root.quit() 
+    
+    def clear_sip_trace(self):
+        self.sip_trace.config(state='normal')
+        self.sip_trace.delete(0.0, END)
+        self.sip_trace.config(state='disabled')
+
+    def load_registrar(self):
+        self.registrar_text.config(state='normal')
+        self.registrar_text.delete(0.0,END)
+        if len(registrar) > 0:
+
+            for regname in registrar:
+                self.registrar_text.insert(END, "\n%s:\n" % regname)
+                self.registrar_text.insert(END, "\t Contact: %s\n" % registrar[regname][0])
+                self.registrar_text.insert(END, "\t IP: %s:%s\n" % (registrar[regname][2][0], registrar[regname][2][1]) )
+                self.registrar_text.insert(END, "\t Expired: %d\n" % registrar[regname][3])
+        else:
+            self.registrar_text.insert(END, "No User Agent registered yet\n")
+            
+        self.registrar_text.see(END)
+        self.registrar_text.config(state='disabled')
+
+    def run_server(self):
+        main_logger.debug("Starting thread")
+        self.options.ip_address = self.gui_ip_address.get()
+        self.options.port = self.gui_port.get()
+        self.options.password = self.gui_password.get()
+        main_logger.info(time.strftime("Starting proxy at %a, %d %b %Y %H:%M:%S ", time.localtime()))
+        recordroute = "Record-Route: <sip:%s:%d;lr>" % (self.options.ip_address, self.options.port)
+        topvia = "Via: SIP/2.0/UDP %s:%d" % (self.options.ip_address, self.options.port)
+    
+        if options.redirect:
+            main_logger.debug("Working in redirect server mode")
+        else:
+            main_logger.debug("Using the Record-Route header: %s" % recordroute) 
+        main_logger.debug("Using the top Via header: %s" % topvia) 
+        main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
+        main_logger.debug("Authentication password: %s" % self.options.password)
+        main_logger.debug("Logfile: %s" % self.options.logfile)
+ 
+
+        self.server = SipTracedUDPServer((self.options.ip_address, self.options.port), UDPHandler, self.sip_trace_logger)
+        self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
+        self.server_thread.daemon = True
+        self.server_thread.start()
+        self.control_button.configure(text="Stop", command=self.stop_server)
+        
+    def stop_server(self):
+        main_logger.debug("Stopping thread")
+        self.server.shutdown()
+        self.server.socket.close()
+        main_logger.debug("Stopped thread")
+        self.control_button.configure(text="Run", command=self.run_server)
 
 if __name__ == "__main__": 
     usage = """%prog [OPTIONS]"""
     
     opt = optparse.OptionParser(usage=usage)
     
+    opt.add_option('-g', dest='gui', default=False, action='store_true',
+            help='Run in GUI mode')
     opt.add_option('-d', dest='debug', default=False, action='store_true',
             help='Run in debug mode')
     opt.add_option('-r', dest='redirect', default=False, action='store_true',
@@ -618,9 +832,19 @@ if __name__ == "__main__":
     main_logger.debug("Authentication password: %s" % options.password)
     main_logger.debug("Logfile: %s" % options.logfile)
     
-    server = SocketServer.UDPServer((options.ip_address, options.port), UDPHandler)
-    try:
-        main_logger.info("Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
-        server.serve_forever()
-    except KeyboardInterrupt:
-        main_logger.info("Exiting.") 
+    if options.gui:
+        from Tkinter import *
+        from ttk import *
+        from ScrolledText import *
+
+        root = Tk()
+        app = MainApplication(root, options)
+        root.title(sys.argv[0])
+        root.mainloop()
+    else:
+        server = SipTracedUDPServer((options.ip_address, options.port), UDPHandler, sip_logger)
+        try:
+            main_logger.info("Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
+            server.serve_forever()
+        except KeyboardInterrupt:
+            main_logger.info("Exiting.") 
