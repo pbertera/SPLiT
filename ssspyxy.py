@@ -80,17 +80,27 @@ topvia = ""
 registrar = {}
 auth = {}
 
-class WidgetLogger(logging.Handler):
+class WidgetSipLogger(logging.Handler):
     def __init__(self, widget):
         logging.Handler.__init__(self)
-        #self.setLevel(logging.INFO)
         self.widget = widget
         self.widget.config(state='disabled')
 
     def emit(self, record):
         self.widget.config(state='normal')
-        # Append message (record) to the widget
         self.widget.insert(END, self.format(record).replace("\r", "").rstrip('\n') + '\n\n')
+        self.widget.see(END)  # Scroll to the bottom
+        self.widget.config(state='disabled')
+
+class WidgetLogger(logging.Handler):
+    def __init__(self, widget):
+        logging.Handler.__init__(self)
+        self.widget = widget
+        self.widget.config(state='disabled')
+
+    def emit(self, record):
+        self.widget.config(state='normal')
+        self.widget.insert(END, self.format(record) + '\n')
         self.widget.see(END)  # Scroll to the bottom
         self.widget.config(state='disabled')
 
@@ -102,6 +112,7 @@ def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(a
         widgetHandler = widget
         widgetHandler.setFormatter(formatter)
         l.addHandler(widgetHandler)
+        return
     elif log_file:
         fileHandler = logging.FileHandler(log_file, mode='w')
         fileHandler.setFormatter(formatter)
@@ -628,6 +639,15 @@ class MainApplication:
         # let the second row grow
         self.sip_frame.rowconfigure(1, weight=1)
 
+        # Logs tab with 2 rows: first with controls, second with Logs
+        self.log_frame = Frame(self.notebook)
+        self.log_frame.columnconfigure(0, weight=1)
+        # first row doesn't expoands
+        self.log_frame.rowconfigure(0, weight=0)
+        # let the second row grow
+        self.log_frame.rowconfigure(1, weight=1)
+
+
         self.settings_frame = Frame(self.main_frame)
         self.settings_frame.grid(row=0, column=0, sticky=N, padx=5, pady=5)
         
@@ -636,26 +656,45 @@ class MainApplication:
 
         self.sip_commands_frame = Frame(self.sip_frame)
         self.sip_commands_frame.grid(row=0, column=0, sticky=N, padx=4, pady=5)
+        
+        self.log_commands_frame = Frame(self.log_frame)
+        self.log_commands_frame.grid(row=0, column=0, sticky=N, padx=4, pady=5)
 
         self.sip_trace_frame = Frame(self.sip_frame)
         self.sip_trace_frame.grid(row=1, column=0, sticky=NSEW)
         # let the SIP trace growing
         self.sip_trace_frame.columnconfigure(0, weight=1)
         self.sip_trace_frame.rowconfigure(0, weight=1)
+        
+        self.log_messages_frame = Frame(self.log_frame)
+        self.log_messages_frame.grid(row=1, column=0, sticky=NSEW)
+        # let the SIP trace growing
+        self.log_messages_frame.columnconfigure(0, weight=1)
+        self.log_messages_frame.rowconfigure(0, weight=1)
+
 
         #self.main_frame.rowconfigure(0, weight=1)
         #self.sip_frame.rowconfigure(0, weight=1)
 
         self.notebook.add(self.main_frame, text='Main', padding=0)
         self.notebook.add(self.sip_frame, text='SIP Trace', padding=0)
+        self.notebook.add(self.log_frame, text='Log', padding=0)
         self.notebook.grid(row=0, column=0, sticky=NSEW)       
 
         self.sip_trace = ScrolledText(self.sip_trace_frame)
         self.sip_trace.grid(row=0, column=0, sticky=NSEW)
+        
+        self.log_messages = ScrolledText(self.log_messages_frame)
+        self.log_messages.grid(row=0, column=0, sticky=NSEW)
 
-        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=WidgetLogger(self.sip_trace))
+        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=WidgetSipLogger(self.sip_trace))
         self.sip_trace_logger = logging.getLogger('sip_widget_logger')
         sip_logger = self.sip_trace_logger 
+        
+        #setup_logger('main_logger', options.logfile, level)
+        #self.main_logger = logging.getLogger('main_logger')
+        setup_logger('main_logger', options.logfile, level, widget=WidgetLogger(self.log_messages))
+        #main_logger.addHandler(WidgetLogger(self.log_messages))
 
         row = 0
         self.gui_debug = BooleanVar()
@@ -699,12 +738,20 @@ class MainApplication:
         self.registrar_text = ScrolledText(self.registrar_frame)
         self.registrar_text.grid(row=0, column=0, sticky=NS)
         self.registrar_text.config(state='disabled') 
+        
         # SIP Trace frame
         row = 0
         self.sip_trace_clear_button = Button(self.sip_commands_frame, text="Clear", command=self.clear_sip_trace)
         self.sip_trace_clear_button.grid(row=row, column=0, sticky=N)
         row = row + 1
+        
+        # Log Messages frame
+        row = 0
+        self.log_messages_clear_button = Button(self.log_commands_frame, text="Clear", command=self.clear_log_messages)
+        self.log_messages_clear_button.grid(row=row, column=0, sticky=N)
+        row = row + 1
     
+
         #self.load_registrar(self.registrar)
 
         self.notebook.grid(row=0, sticky=NSEW)
@@ -730,6 +777,11 @@ class MainApplication:
     def cleanup_on_exit(self):
         self.root.quit() 
     
+    def clear_log_messages(self):
+        self.log_messages.config(state='normal')
+        self.log_messages.delete(0.0, END)
+        self.log_messages.config(state='disabled')
+
     def clear_sip_trace(self):
         self.sip_trace.config(state='normal')
         self.sip_trace.delete(0.0, END)
@@ -752,6 +804,8 @@ class MainApplication:
         self.registrar_text.config(state='disabled')
 
     def run_server(self):
+        global recordroute
+        global topvia
         main_logger.debug("Starting thread")
         self.options.ip_address = self.gui_ip_address.get()
         self.options.port = self.gui_port.get()
@@ -769,11 +823,13 @@ class MainApplication:
         main_logger.debug("Authentication password: %s" % self.options.password)
         main_logger.debug("Logfile: %s" % self.options.logfile)
  
-
-        self.server = SipTracedUDPServer((self.options.ip_address, self.options.port), UDPHandler, self.sip_trace_logger)
-        self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
-        self.server_thread.daemon = True
-        self.server_thread.start()
+        try:
+            self.server = SipTracedUDPServer((self.options.ip_address, self.options.port), UDPHandler, self.sip_trace_logger)
+            self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
+            self.server_thread.daemon = True
+            self.server_thread.start()
+        except Exception, e:
+            main_logger.error("Cannot start the server: %s" % e)
         self.control_button.configure(text="Stop", command=self.stop_server)
         
     def stop_server(self):
@@ -842,7 +898,10 @@ if __name__ == "__main__":
         root.title(sys.argv[0])
         root.mainloop()
     else:
-        server = SipTracedUDPServer((options.ip_address, options.port), UDPHandler, sip_logger)
+        try:
+            server = SipTracedUDPServer((options.ip_address, options.port), UDPHandler, sip_logger)
+        except Exception, e:
+            main_logger.error("Cannot start the server: %s" % e)
         try:
             main_logger.info("Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
             server.serve_forever()
