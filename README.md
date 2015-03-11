@@ -13,6 +13,7 @@ ssspyxy is developed with hackability in mind, the main aim is to reproduce SIP 
 - Proxy of SIP messages between UA
 - UDP only suppport
 - Self contained and portable: tested on OS-X, Linux, Windows
+- TKinter GUI interface
 
 ## Installation
 
@@ -51,6 +52,7 @@ On windows (in a cmd.exe prompt):
     
     Options:
         -h, --help      show this help message and exit
+        -t              Run in terminal mode (no GUI)
         -d              Run in debug mode
         -r              Act as a redirect server
         -i IP_ADDRESS   Specify ip address to bind on (default: 127.0.0.1)
@@ -59,6 +61,20 @@ On windows (in a cmd.exe prompt):
         -l LOGFILE      Specify the log file (default: log to stdout)
         -e EXPIRES      Default registration expires (default: 3600)
         -P PASSWORD     Athentication password (default: protected)
+
+# Screenshots
+
+**Main tab:**
+
+![Main Tab](docs/main.png)
+
+**SIP strace:**
+
+![SIP Trace Tab](docs/sip_trace.png)
+
+**Log messages:**
+
+![Log messages](docs/logs.png)
 
 # Acknowledgment
 

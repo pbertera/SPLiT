@@ -796,7 +796,7 @@ class MainApplication:
                 self.registrar_text.insert(END, "\n%s:\n" % regname)
                 self.registrar_text.insert(END, "\t Contact: %s\n" % registrar[regname][0])
                 self.registrar_text.insert(END, "\t IP: %s:%s\n" % (registrar[regname][2][0], registrar[regname][2][1]) )
-                self.registrar_text.insert(END, "\t Expired: %d\n" % registrar[regname][3])
+                self.registrar_text.insert(END, "\t Expires: %d\n" % registrar[regname][3])
         else:
             self.registrar_text.insert(END, "No User Agent registered yet\n")
             
@@ -828,9 +828,10 @@ class MainApplication:
             self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()
+            self.control_button.configure(text="Stop", command=self.stop_server)
         except Exception, e:
             main_logger.error("Cannot start the server: %s" % e)
-        self.control_button.configure(text="Stop", command=self.stop_server)
+            raise e
         
     def stop_server(self):
         main_logger.debug("Stopping thread")
@@ -844,8 +845,8 @@ if __name__ == "__main__":
     
     opt = optparse.OptionParser(usage=usage)
     
-    opt.add_option('-g', dest='gui', default=False, action='store_true',
-            help='Run in GUI mode')
+    opt.add_option('-t', dest='terminal', default=False, action='store_true',
+            help='Run in terminal mode (no GUI)')
     opt.add_option('-d', dest='debug', default=False, action='store_true',
             help='Run in debug mode')
     opt.add_option('-r', dest='redirect', default=False, action='store_true',
@@ -888,7 +889,7 @@ if __name__ == "__main__":
     main_logger.debug("Authentication password: %s" % options.password)
     main_logger.debug("Logfile: %s" % options.logfile)
     
-    if options.gui:
+    if not options.terminal:
         from Tkinter import *
         from ttk import *
         from ScrolledText import *
@@ -902,6 +903,7 @@ if __name__ == "__main__":
             server = SipTracedUDPServer((options.ip_address, options.port), UDPHandler, sip_logger)
         except Exception, e:
             main_logger.error("Cannot start the server: %s" % e)
+            raise e
         try:
             main_logger.info("Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
             server.serve_forever()
