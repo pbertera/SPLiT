@@ -15,7 +15,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import Queue
 import SocketServer
 import re
 import string
@@ -27,6 +27,7 @@ import hashlib
 import random
 import logging
 import threading
+import time
 
 # Regexp matching SIP messages:
 rx_register = re.compile("^REGISTER")
@@ -80,6 +81,25 @@ topvia = ""
 registrar = {}
 auth = {}
 
+class QueueLogger(logging.Handler):
+    def __init__(self, queue):
+        logging.Handler.__init__(self)
+        self.queue = queue
+
+    def emit(self, record):
+        record = self.adjust_record(self.format(record))
+        self.queue.put(record)
+        #time.sleep(0.01)
+
+class SipTraceQueueLogger(QueueLogger):
+    def adjust_record(self, record):
+        return record.replace("\r", "").rstrip('\n') + '\n\n'
+
+class MessagesQueueLogger(QueueLogger):
+    def adjust_record(self, record):
+        return record + '\n'
+
+#DELETE
 class WidgetSipLogger(logging.Handler):
     def __init__(self, widget):
         logging.Handler.__init__(self)
@@ -104,10 +124,14 @@ class WidgetLogger(logging.Handler):
         self.widget.see(END)  # Scroll to the bottom
         self.widget.config(state='disabled')
 
-def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s', widget=None):
+def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s', widget=None, queue=None):
     l = logging.getLogger(logger_name)
     l.setLevel(level)
     formatter = logging.Formatter(str_format)
+    if queue:
+        queueHandler = QueueHandler(queue)
+        queueHandler.setFormatter(formatter)
+        l.addHandler(queueHandler)
     if widget:
         widgetHandler = widget
         widgetHandler.setFormatter(formatter)
@@ -683,19 +707,26 @@ class MainApplication:
 
         self.sip_trace = ScrolledText(self.sip_trace_frame)
         self.sip_trace.grid(row=0, column=0, sticky=NSEW)
+        self.sip_trace.config(state='disabled') 
         
         self.log_messages = ScrolledText(self.log_messages_frame)
         self.log_messages.grid(row=0, column=0, sticky=NSEW)
 
-        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=WidgetSipLogger(self.sip_trace))
+        #TODO: 
+        #setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=WidgetSipLogger(self.sip_trace))
+        sip_queue = Queue.Queue()
+        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=SipTraceQueueLogger(queue=sip_queue))
+        self.update_widget(self.sip_trace, sip_queue)
         self.sip_trace_logger = logging.getLogger('sip_widget_logger')
         sip_logger = self.sip_trace_logger 
-        
-        #setup_logger('main_logger', options.logfile, level)
-        #self.main_logger = logging.getLogger('main_logger')
-        setup_logger('main_logger', options.logfile, level, widget=WidgetLogger(self.log_messages))
+    
+        #TODO: 
+        #setup_logger('main_logger', options.logfile, level, widget=WidgetLogger(self.log_messages))
+        log_queue = Queue.Queue()
+        setup_logger('main_logger', options.logfile, level, widget=MessagesQueueLogger(queue=log_queue))
+        self.update_widget(self.log_messages, log_queue)
         #main_logger.addHandler(WidgetLogger(self.log_messages))
-
+    
         row = 0
         self.gui_debug = BooleanVar()
         self.gui_debug.set(self.options.debug)
@@ -756,7 +787,18 @@ class MainApplication:
 
         self.notebook.grid(row=0, sticky=NSEW)
         self.root.wm_protocol("WM_DELETE_WINDOW", self.cleanup_on_exit)
-    
+   
+    def update_widget(self, widget, queue):
+        widget.config(state='normal')
+        while not queue.empty():
+            #line = queue.get_nowait()
+            line = queue.get()
+            widget.insert(END, line)
+            widget.see(END)  # Scroll to the bottom
+            widget.update_idletasks()
+        widget.config(state='disabled')
+        widget.after(10, self.update_widget, widget, queue)
+
     def gui_debug_action(self):
         if self.gui_debug.get():
             main_logger.debug("Activating Debug")
