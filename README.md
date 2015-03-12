@@ -68,7 +68,7 @@ On windows (in a cmd.exe prompt):
 
 ![Main Tab](docs/main.png)
 
-**SIP strace:**
+**SIP trace:**
 
 ![SIP Trace Tab](docs/sip_trace.png)
 
