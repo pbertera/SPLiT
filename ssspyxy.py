@@ -15,6 +15,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import Queue
 import SocketServer
 import re
@@ -89,7 +90,6 @@ class QueueLogger(logging.Handler):
     def emit(self, record):
         record = self.adjust_record(self.format(record))
         self.queue.put(record)
-        #time.sleep(0.01)
 
 class SipTraceQueueLogger(QueueLogger):
     def adjust_record(self, record):
@@ -99,43 +99,13 @@ class MessagesQueueLogger(QueueLogger):
     def adjust_record(self, record):
         return record + '\n'
 
-#DELETE
-class WidgetSipLogger(logging.Handler):
-    def __init__(self, widget):
-        logging.Handler.__init__(self)
-        self.widget = widget
-        self.widget.config(state='disabled')
-
-    def emit(self, record):
-        self.widget.config(state='normal')
-        self.widget.insert(END, self.format(record).replace("\r", "").rstrip('\n') + '\n\n')
-        self.widget.see(END)  # Scroll to the bottom
-        self.widget.config(state='disabled')
-
-class WidgetLogger(logging.Handler):
-    def __init__(self, widget):
-        logging.Handler.__init__(self)
-        self.widget = widget
-        self.widget.config(state='disabled')
-
-    def emit(self, record):
-        self.widget.config(state='normal')
-        self.widget.insert(END, self.format(record) + '\n')
-        self.widget.see(END)  # Scroll to the bottom
-        self.widget.config(state='disabled')
-
-def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s', widget=None, queue=None):
+def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s', handler=None):
     l = logging.getLogger(logger_name)
     l.setLevel(level)
     formatter = logging.Formatter(str_format)
-    if queue:
-        queueHandler = QueueHandler(queue)
-        queueHandler.setFormatter(formatter)
-        l.addHandler(queueHandler)
-    if widget:
-        widgetHandler = widget
-        widgetHandler.setFormatter(formatter)
-        l.addHandler(widgetHandler)
+    if handler:
+        handler.setFormatter(formatter)
+        l.addHandler(handler)
         return
     elif log_file:
         fileHandler = logging.FileHandler(log_file, mode='w')
@@ -614,16 +584,12 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #print "message %s unknown" % self.data
     
     def handle(self):
-        #socket.setdefaulttimeout(120)
         data = self.request[0]
         self.data = data.split("\r\n")
         self.socket = self.request[1]
         request_uri = self.data[0]
         if rx_request_uri.search(request_uri) or rx_code.search(request_uri):
-            #showtime()
-            #sip_logger.info(">>> %s" % request_uri)
             self.server.sip_logger.debug("Received from %s:%d (%d bytes):\n\n%s" %  (self.client_address[0], self.client_address[1], len(data), data))
-            #sip_logger.debug("Received from %s:%d" % self.client_address)
             self.processRequest()
         else:
             if len(data) > 4:
@@ -696,10 +662,6 @@ class MainApplication:
         self.log_messages_frame.columnconfigure(0, weight=1)
         self.log_messages_frame.rowconfigure(0, weight=1)
 
-
-        #self.main_frame.rowconfigure(0, weight=1)
-        #self.sip_frame.rowconfigure(0, weight=1)
-
         self.notebook.add(self.main_frame, text='Main', padding=0)
         self.notebook.add(self.sip_frame, text='SIP Trace', padding=0)
         self.notebook.add(self.log_frame, text='Log', padding=0)
@@ -712,20 +674,15 @@ class MainApplication:
         self.log_messages = ScrolledText(self.log_messages_frame)
         self.log_messages.grid(row=0, column=0, sticky=NSEW)
 
-        #TODO: 
-        #setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=WidgetSipLogger(self.sip_trace))
         sip_queue = Queue.Queue()
-        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', widget=SipTraceQueueLogger(queue=sip_queue))
+        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=sip_queue))
         self.update_widget(self.sip_trace, sip_queue)
         self.sip_trace_logger = logging.getLogger('sip_widget_logger')
         sip_logger = self.sip_trace_logger 
     
-        #TODO: 
-        #setup_logger('main_logger', options.logfile, level, widget=WidgetLogger(self.log_messages))
         log_queue = Queue.Queue()
-        setup_logger('main_logger', options.logfile, level, widget=MessagesQueueLogger(queue=log_queue))
+        setup_logger('main_logger', options.logfile, level, handler=MessagesQueueLogger(queue=log_queue))
         self.update_widget(self.log_messages, log_queue)
-        #main_logger.addHandler(WidgetLogger(self.log_messages))
     
         row = 0
         self.gui_debug = BooleanVar()
@@ -774,16 +731,12 @@ class MainApplication:
         row = 0
         self.sip_trace_clear_button = Button(self.sip_commands_frame, text="Clear", command=self.clear_sip_trace)
         self.sip_trace_clear_button.grid(row=row, column=0, sticky=N)
-        row = row + 1
         
         # Log Messages frame
         row = 0
         self.log_messages_clear_button = Button(self.log_commands_frame, text="Clear", command=self.clear_log_messages)
         self.log_messages_clear_button.grid(row=row, column=0, sticky=N)
         row = row + 1
-    
-
-        #self.load_registrar(self.registrar)
 
         self.notebook.grid(row=0, sticky=NSEW)
         self.root.wm_protocol("WM_DELETE_WINDOW", self.cleanup_on_exit)
