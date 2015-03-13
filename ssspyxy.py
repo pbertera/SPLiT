@@ -674,16 +674,20 @@ class MainApplication:
         self.log_messages = ScrolledText(self.log_messages_frame)
         self.log_messages.grid(row=0, column=0, sticky=NSEW)
 
-        sip_queue = Queue.Queue()
-        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=sip_queue))
-        self.update_widget(self.sip_trace, sip_queue)
+        self.sip_queue = Queue.Queue()
+        setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=self.sip_queue))
+        #self.update_widget(self.sip_trace, sip_queue)
+        #self.update_sip_trace_widget()
+        
         self.sip_trace_logger = logging.getLogger('sip_widget_logger')
         sip_logger = self.sip_trace_logger 
     
-        log_queue = Queue.Queue()
-        setup_logger('main_logger', options.logfile, level, handler=MessagesQueueLogger(queue=log_queue))
-        self.update_widget(self.log_messages, log_queue)
-    
+        self.log_queue = Queue.Queue()
+        setup_logger('main_logger', options.logfile, level, handler=MessagesQueueLogger(queue=self.log_queue))
+        #self.update_widget(self.log_messages, log_queue)
+        #self.update_log_messages_widget()
+        
+
         row = 0
         self.gui_debug = BooleanVar()
         self.gui_debug.set(self.options.debug)
@@ -732,15 +736,52 @@ class MainApplication:
         self.sip_trace_clear_button = Button(self.sip_commands_frame, text="Clear", command=self.clear_sip_trace)
         self.sip_trace_clear_button.grid(row=row, column=0, sticky=N)
         
+        self.sip_trace_pause_button = Button(self.sip_commands_frame, text="Pause", command=self.pause_sip_trace)
+        self.sip_trace_pause_button.grid(row=row, column=1, sticky=N)
+        
         # Log Messages frame
         row = 0
         self.log_messages_clear_button = Button(self.log_commands_frame, text="Clear", command=self.clear_log_messages)
         self.log_messages_clear_button.grid(row=row, column=0, sticky=N)
+        
+        self.log_messages_pause_button = Button(self.log_commands_frame, text="PPause", command=self.pause_log_messages)
+        self.log_messages_pause_button.grid(row=row, column=1, sticky=N)
         row = row + 1
 
+        self.start_sip_trace()
+        self.start_log_messages()
+       
         self.notebook.grid(row=0, sticky=NSEW)
         self.root.wm_protocol("WM_DELETE_WINDOW", self.cleanup_on_exit)
-   
+
+    def pause_log_messages(self):
+        if self.log_messages_alarm is not None:
+            self.log_messages.after_cancel(self.log_messages_alarm)
+            self.log_messages_pause_button.configure(text="Start", command=self.start_log_messages)
+            self.log_messages_alarm = None
+
+    def start_log_messages(self):
+        self.update_log_messages_widget()
+        self.log_messages_pause_button.configure(text="Pause", command=self.pause_log_messages)
+        
+    def pause_sip_trace(self):
+        if self.sip_trace_alarm is not None:
+            self.sip_trace.after_cancel(self.sip_trace_alarm)
+            self.sip_trace_pause_button.configure(text="Start", command=self.start_sip_trace)
+            self.sip_trace_alarm = None
+
+    def start_sip_trace(self):
+        self.update_sip_trace_widget()
+        self.sip_trace_pause_button.configure(text="Pause", command=self.pause_sip_trace)
+
+    def update_log_messages_widget(self):
+        self.update_widget(self.log_messages, self.log_queue) 
+        self.log_messages_alarm = self.log_messages.after(10, self.update_log_messages_widget)
+
+    def update_sip_trace_widget(self):
+        self.update_widget(self.sip_trace, self.sip_queue) 
+        self.sip_trace_alarm = self.sip_trace.after(10, self.update_sip_trace_widget)
+    
     def update_widget(self, widget, queue):
         widget.config(state='normal')
         while not queue.empty():
@@ -750,7 +791,7 @@ class MainApplication:
             widget.see(END)  # Scroll to the bottom
             widget.update_idletasks()
         widget.config(state='disabled')
-        widget.after(10, self.update_widget, widget, queue)
+        #widget.after(10, self.update_widget, widget, queue)
 
     def gui_debug_action(self):
         if self.gui_debug.get():
