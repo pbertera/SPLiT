@@ -422,6 +422,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                     main_logger.debug("Received ACK, ignoring")
                     return
                 if method.upper() != "INVITE":
+                    main_logger.debug("non-INVITE received")
                     self.sendResponse("405 Method Not Allowed")
                     return
 
@@ -442,9 +443,15 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                         self.data.insert(6,header)
                         self.sendResponse("302 Moved temporarily")
                         main_logger.debug("Destination Contact: %s" % contact)
+                        return
                     else:
                         main_logger.info("Destination not found in registrar")
                         self.sendResponse("404 Not Found")
+                        return
+                else:
+                    main_logger.error("Error retreiving destination")
+                    self.sendResponse("600 Failure") #TODO: is the right message here ?
+                    return
             else:
                 main_logger.debug("Running in proxy mode")
             return function(self)
