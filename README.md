@@ -76,6 +76,16 @@ On windows (in a cmd.exe prompt):
 
 ![Log messages](docs/logs.png)
 
+# TODO
+
+- add tests
+- distribution packaging
+- move SIP authorization to a decorator
+- embed a syslog server
+- embed a DHCP and TFTP server from https://github.com/psychomario/PyPXE
+- ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
+- Python 3 support
+
 # Acknowledgment
 
 This work is based on the https://github.com/tirfil/PySipProxy from Philippe THIRION.
