@@ -124,24 +124,18 @@ def hexdump( chars, sep, width ):
         line = line.ljust( width, '\000' )
         data.append("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
     return data
-        #sip_logger.debug("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
 
 def quotechars( chars ):
 	return ''.join( ['.', c][c.isalnum()] for c in chars )
 
-def showtime():
-    main_logger.debug(time.strftime("(%H:%M:%S)", time.localtime()))
-    
-def generateNonce(n):
-    str = "0123456789abcdef"
-    length = len(str)
+def generateNonce(n, str="0123456789abcdef"):
     nonce = ""
     for i in range(n):
-        a = int(random.uniform(0,length))
+        a = int(random.uniform(0,len(str)))
         nonce += str[a]
     return nonce
     
-def checkAuthorization(authorization, password, nonce):
+def checkAuthorization(authorization, password, nonce, method="REGISTER"):
     hash = {}
     list = authorization.split(",")
     for elem in list:
@@ -156,7 +150,7 @@ def checkAuthorization(authorization, password, nonce):
         return False
 
     a1="%s:%s:%s" % (hash["username"],hash["realm"], password)
-    a2="REGISTER:%s" % hash["uri"]
+    a2="%s:%s" % (method, hash["uri"])
     ha1 = hashlib.md5(a1).hexdigest()
     ha2 = hashlib.md5(a2).hexdigest()
     b = "%s:%s:%s" % (ha1,nonce,ha2)
@@ -501,17 +495,12 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             main_logger.info("Ack: destination %s" % destination)
             if registrar.has_key(destination):
                 socket,claddr = self.getSocketInfo(destination)
-                #self.changeRequestUri()
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
-                #insert Record-Route
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
-                #showtime()
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
-                #main_logger.info("<<< %s" % data[0])
-                #main_logger.debug( "---\n<< server send [%d]:\n%s\n---" % (len(text),text))
                 
     @is_redirect
     def processNonInvite(self):
@@ -533,7 +522,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
-                #showtime()
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
                 self.sendResponse("404 Not found")
@@ -553,9 +541,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data = self.removeTopVia()
                 text = string.join(data,"\r\n")
                 self.sendTo(text,claddr, socket)
-                #showtime()
-                #sip_logger.info("<<< %s" % data[0])
-                #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
                 
