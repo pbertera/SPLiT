@@ -450,7 +450,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                         return
                 else:
                     main_logger.error("Error retreiving destination")
-                    self.sendResponse("600 Failure") #TODO: is the right message here ?
+                    self.sendResponse("404 Not Found") #TODO: is the right message here ?
                     return
             else:
                 main_logger.debug("Running in proxy mode")
@@ -764,7 +764,7 @@ class MainApplication:
     def pause_log_messages(self):
         if self.log_messages_alarm is not None:
             self.log_messages.after_cancel(self.log_messages_alarm)
-            self.log_messages_pause_button.configure(text="Start", command=self.start_log_messages)
+            self.log_messages_pause_button.configure(text="Resume", command=self.start_log_messages)
             self.log_messages_alarm = None
 
     def start_log_messages(self):
@@ -774,7 +774,7 @@ class MainApplication:
     def pause_sip_trace(self):
         if self.sip_trace_alarm is not None:
             self.sip_trace.after_cancel(self.sip_trace_alarm)
-            self.sip_trace_pause_button.configure(text="Start", command=self.start_sip_trace)
+            self.sip_trace_pause_button.configure(text="Resume", command=self.start_sip_trace)
             self.sip_trace_alarm = None
 
     def start_sip_trace(self):
@@ -839,7 +839,7 @@ class MainApplication:
                 self.registrar_text.insert(END, "\n%s:\n" % regname)
                 self.registrar_text.insert(END, "\t Contact: %s\n" % registrar[regname][0])
                 self.registrar_text.insert(END, "\t IP: %s:%s\n" % (registrar[regname][2][0], registrar[regname][2][1]) )
-                self.registrar_text.insert(END, "\t Expires: %d\n" % registrar[regname][3])
+                self.registrar_text.insert(END, "\t Expires: %s\n" % time.ctime(registrar[regname][3]))
         else:
             self.registrar_text.insert(END, "No User Agent registered yet\n")
             
