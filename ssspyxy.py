@@ -117,11 +117,14 @@ def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(a
         l.addHandler(streamHandler)
 
 def hexdump( chars, sep, width ):
+    data = []
     while chars:
         line = chars[:width]
         chars = chars[width:]
         line = line.ljust( width, '\000' )
-        sip_logger.debug("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
+        data.append("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
+    return data
+        #sip_logger.debug("%s%s%s" % ( sep.join( "%02x" % ord(c) for c in line ),sep, quotechars( line )))
 
 def quotechars( chars ):
 	return ''.join( ['.', c][c.isalnum()] for c in chars )
@@ -308,10 +311,17 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 break
         data.append("")
         text = string.join(data,"\r\n")
-        self.socket.sendto(text,self.client_address)
-        #showtime()
+        self.sendTo(text, self.client_address)
         self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
-        
+    
+    def sendTo(self, data, client_address, socket=None):
+        main_logger.debug("Sending to %s:%d" % (client_address))
+        if socket:
+            sent = socket.sendto(data, client_address)
+        else:
+            sent = self.socket.sendto(data, client_address)
+        main_logger.debug("Succesfully sent %d bytes" % sent)
+
     def processRegister(self):
         main_logger.info("Register received: %s" % self.data[0])
         fromm = ""
@@ -475,7 +485,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data = self.removeRouteHeader()
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
-                socket.sendto(text , claddr)
+                self.sendTo(text , claddr, socket)
                 main_logger.debug("Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
@@ -497,7 +507,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #insert Record-Route
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
-                socket.sendto(text,claddr)
+                self.sendTo(text, claddr, socket)
                 #showtime()
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 #main_logger.info("<<< %s" % data[0])
@@ -522,7 +532,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #insert Record-Route
                 data.insert(1,recordroute)
                 text = string.join(data,"\r\n")
-                socket.sendto(text , claddr)
+                self.sendTo(text, claddr, socket)
                 #showtime()
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
@@ -542,7 +552,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 main_logger.debug("Code received: %s" % self.data[0])
                 data = self.removeTopVia()
                 text = string.join(data,"\r\n")
-                socket.sendto(text,claddr)
+                self.sendTo(text,claddr, socket)
                 #showtime()
                 #sip_logger.info("<<< %s" % data[0])
                 #sip_logger.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
@@ -600,9 +610,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             self.processRequest()
         else:
             if len(data) > 4:
-                #showtime()
                 self.server.sip_logger.warning("Received from %s:%d (%d bytes):\n\n" %  (self.client_address[0], self.client_address[1], len(data)))
-                hexdump(data,' ',16)
+                mess = hexdump(data,' ',16)
+                self.server.sip_logger.debug('Hex data:\n' + '\n'.join(mess))
 
 class MainApplication:
     
