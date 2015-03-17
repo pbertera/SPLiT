@@ -52,6 +52,7 @@ rx_cto = re.compile("^t:")
 rx_tag = re.compile(";tag")
 rx_contact = re.compile("^Contact:")
 rx_ccontact = re.compile("^m:")
+rx_useragent = re.compile("^User-Agent:")
 rx_uri_with_params = re.compile("sip:([^@]*)@([^;>$]*)")
 rx_uri = re.compile("sip:([^@]*)@([^>$]*)")
 rx_addr = re.compile("sip:([^ ;>$]*)")
@@ -77,8 +78,8 @@ rx_authorization = re.compile("^Authorization: +\S{6} (.*)")
 rx_kv= re.compile("([^=]*)=(.*)")
 
 # global dictionnary
-recordroute = ""
-topvia = ""
+#recordroute = ""
+#topvia = ""
 registrar = {}
 auth = {}
 
@@ -163,9 +164,13 @@ def checkAuthorization(authorization, password, nonce, method="REGISTER"):
     return False
 
 class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
-    def __init__(self, server_address, RequestHandlerClass, sip_logger):
+    def __init__(self, server_address, RequestHandlerClass, sip_logger, options):
         SocketServer.UDPServer.__init__(self, server_address, RequestHandlerClass)
         self.sip_logger = sip_logger
+        self.options = options
+
+        self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (server_address[0], server_address[1])
+        self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
     
@@ -207,6 +212,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
 
     def removeContentType(self):
         return self.removeHeader(rx_contenttype)
+    
+    def removeUserAgent(self):
+        return self.removeHeader(rx_useragent)
 
     def addTopVia(self):
         branch= ""
@@ -216,8 +224,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 md = rx_branch.search(line)
                 if md:
                     branch=md.group(1)
-                    via = "%s;branch=%sm" % (topvia, branch)
+                    via = "%s;branch=%sm" % (self.server.topvia, branch)
                     data.append(via)
+                    main_logger.debug("Adding Top Via header: %s" % via)
                 # rport processing
                 if rx_rport.search(line):
                     text = "received=%s;rport=%d" % self.client_address
@@ -225,6 +234,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 else:
                     text = "received=%s" % self.client_address[0]
                     via = "%s;%s" % (line,text)
+                main_logger.debug("Adding Top Via header: %s" % via)
                 data.append(via)
             else:
                 data.append(line)
@@ -234,7 +244,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         data = []
         for line in self.data:
             if rx_via.search(line) or rx_cvia.search(line):
-                if not line.startswith(topvia):
+                if not line.startswith(self.server.topvia):
                     data.append(line)
             else:
                 data.append(line)
@@ -371,7 +381,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 
         if len(authorization)> 0 and auth.has_key(fromm):
             nonce = auth[fromm]
-            if not checkAuthorization(authorization,options.password,nonce):
+            if not checkAuthorization(authorization,self.server.options.password,nonce):
                 self.sendResponse("403 Forbidden")
                 return
         else:
@@ -393,7 +403,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendResponse("200 0K")
                 return
         elif expires == None:
-            expires = options.expires
+            expires = self.server.options.expires
             header = "Expires: %s" % expires
             self.data.insert(6, header)
         
@@ -411,7 +421,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     
     def is_redirect(function):
         def _is_redirect(self, *args, **kwargs):
-            if options.redirect:
+            if self.server.options.redirect:
                 main_logger.debug("Acting as a redirect server")
                 
                 md = rx_request_uri.search(self.data[0])
@@ -443,6 +453,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                         header = "Contact: <sip:%s>" % contact
                         self.data = self.removeContact()
                         self.data = self.removeContentType()
+                        self.data = self.removeUserAgent()
+                        #self.data = self.addTopVia()
+                        self.data = self.removeRouteHeader()
                         main_logger.debug("Destination %s" % header)
                         self.data.insert(6,header)
                         self.sendResponse("302 Moved temporarily")
@@ -477,7 +490,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.changeRequestUri()
                 data = self.addTopVia()
                 data = self.removeRouteHeader()
-                data.insert(1,recordroute)
+                data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text , claddr, socket)
                 main_logger.debug("Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
@@ -497,7 +510,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 socket,claddr = self.getSocketInfo(destination)
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
-                data.insert(1,recordroute)
+                data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
@@ -519,7 +532,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
                 #insert Record-Route
-                data.insert(1,recordroute)
+                data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
@@ -682,7 +695,7 @@ class MainApplication:
         #self.update_sip_trace_widget()
         
         self.sip_trace_logger = logging.getLogger('sip_widget_logger')
-        sip_logger = self.sip_trace_logger 
+        #sip_logger = self.sip_trace_logger 
     
         self.log_queue = Queue.Queue()
         setup_logger('main_logger', options.logfile, level, handler=MessagesQueueLogger(queue=self.log_queue))
@@ -842,27 +855,22 @@ class MainApplication:
         self.registrar_text.config(state='disabled')
 
     def run_server(self):
-        global recordroute
-        global topvia
+        #global recordroute
+        #global topvia
         main_logger.debug("Starting thread")
         self.options.ip_address = self.gui_ip_address.get()
         self.options.port = self.gui_port.get()
         self.options.password = self.gui_password.get()
         main_logger.info(time.strftime("Starting proxy at %a, %d %b %Y %H:%M:%S ", time.localtime()))
-        recordroute = "Record-Route: <sip:%s:%d;lr>" % (self.options.ip_address, self.options.port)
-        topvia = "Via: SIP/2.0/UDP %s:%d" % (self.options.ip_address, self.options.port)
+        #recordroute = "Record-Route: <sip:%s:%d;lr>" % (self.options.ip_address, self.options.port)
+        #topvia = "Via: SIP/2.0/UDP %s:%d" % (self.options.ip_address, self.options.port)
     
-        if options.redirect:
-            main_logger.debug("Working in redirect server mode")
-        else:
-            main_logger.debug("Using the Record-Route header: %s" % recordroute) 
-        main_logger.debug("Using the top Via header: %s" % topvia) 
         main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
         main_logger.debug("Authentication password: %s" % self.options.password)
         main_logger.debug("Logfile: %s" % self.options.logfile)
  
         try:
-            self.server = SipTracedUDPServer((self.options.ip_address, self.options.port), UDPHandler, self.sip_trace_logger)
+            self.server = SipTracedUDPServer((self.options.ip_address, self.options.port), UDPHandler, self.sip_trace_logger, self.options)
             self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()
@@ -870,6 +878,13 @@ class MainApplication:
         except Exception, e:
             main_logger.error("Cannot start the server: %s" % e)
             raise e
+        
+        main_logger.debug("Using the top Via header: %s" % self.server.topvia) 
+        
+        if options.redirect:
+            main_logger.debug("Working in redirect server mode")
+        else:
+            main_logger.debug("Using the Record-Route header: %s" % self.server.recordroute) 
         
     def stop_server(self):
         main_logger.debug("Stopping thread")
@@ -915,14 +930,7 @@ if __name__ == "__main__":
     sip_logger = logging.getLogger('sip_logger')
     
     main_logger.info(time.strftime("Starting proxy at %a, %d %b %Y %H:%M:%S ", time.localtime()))
-    recordroute = "Record-Route: <sip:%s:%d;lr>" % (options.ip_address, options.port)
-    topvia = "Via: SIP/2.0/UDP %s:%d" % (options.ip_address, options.port)
     
-    if options.redirect:
-        main_logger.debug("Working in redirect server mode")
-    else:
-        main_logger.debug("Using the Record-Route header: %s" % recordroute) 
-    main_logger.debug("Using the top Via header: %s" % topvia) 
     main_logger.debug("Writing SIP messages in %s log file" % options.sip_logfile)
     main_logger.debug("Authentication password: %s" % options.password)
     main_logger.debug("Logfile: %s" % options.logfile)
@@ -938,11 +946,16 @@ if __name__ == "__main__":
         root.mainloop()
     else:
         try:
-            server = SipTracedUDPServer((options.ip_address, options.port), UDPHandler, sip_logger)
+            server = SipTracedUDPServer((options.ip_address, options.port), UDPHandler, sip_logger, options)
         except Exception, e:
             main_logger.error("Cannot start the server: %s" % e)
             raise e
         try:
+            if options.redirect:
+                main_logger.debug("Working in redirect server mode")
+            else:
+                main_logger.debug("Using the Record-Route header: %s" % server.recordroute) 
+                main_logger.debug("Using the top Via header: %s" % server.topvia) 
             main_logger.info("Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.port))
             server.serve_forever()
         except KeyboardInterrupt:
