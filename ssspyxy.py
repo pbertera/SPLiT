@@ -53,6 +53,10 @@ rx_tag = re.compile(";tag")
 rx_contact = re.compile("^Contact:")
 rx_ccontact = re.compile("^m:")
 rx_useragent = re.compile("^User-Agent:")
+rx_contentdisposition = re.compile("^Content-Disposition:")
+rx_supported = re.compile("^Supported:")
+rx_sessionexpires = re.compile("^Session-Expires:")
+rx_maxforward = re.compile("^Max-Forwards:")
 rx_uri_with_params = re.compile("sip:([^@]*)@([^;>$]*)")
 rx_uri = re.compile("sip:([^@]*)@([^>$]*)")
 rx_addr = re.compile("sip:([^ ;>$]*)")
@@ -204,6 +208,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 main_logger.debug("Removed %s" % line)
         return data
 
+    def removeMaxForward(self):
+        return self.removeHeader(rx_maxforward)
+
     def removeRouteHeader(self):
         return self.removeHeader(rx_route)
 
@@ -215,6 +222,16 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     
     def removeUserAgent(self):
         return self.removeHeader(rx_useragent)
+    
+    def removeSessionExpires(self):
+        return self.removeHeader(rx_sessionexpires)
+
+    def removeSupported(self):
+        return self.removeHeader(rx_supported)
+    
+    def removeContentDisposition(self):
+        return self.removeHeader(rx_contentdisposition)
+
 
     def addTopVia(self):
         branch= ""
@@ -454,11 +471,15 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                         self.data = self.removeContact()
                         self.data = self.removeContentType()
                         self.data = self.removeUserAgent()
+                        self.data = self.removeSessionExpires()
+                        self.data = self.removeSupported()
+                        self.data = self.removeContentDisposition()
+                        self.data = self.removeMaxForward()
                         #self.data = self.addTopVia()
                         self.data = self.removeRouteHeader()
                         main_logger.debug("Destination %s" % header)
                         self.data.insert(6,header)
-                        self.sendResponse("302 Moved temporarily")
+                        self.sendResponse("302 Moved Temporarily")
                         main_logger.debug("Destination Contact: %s" % contact)
                         return
                     else:
