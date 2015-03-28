@@ -1,0 +1,24 @@
+**************************
+Test 01: Registraion and basic call
+**************************
+
+TEST 001: 100 Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -sf 01-uac-register.xml -ap protected -s 100 -i 127.0.0.1 -p 5061 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 001: OK
+
+TEST 002: 200 Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -sf 01-uac-register.xml -ap protected -s 200 -i 127.0.0.1 -p 5062 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 002: OK
+
+TEST 003: SIPp scenario 01-uac.xml
+    TEST_COMMAND: /opt/sipp-master/sipp -set ua 200 -sf 01-uac.xml -i 127.0.0.1 -p 5062 -s 100 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 003: OK
+
+TEST 004: 100 De-Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -sf 01-uac-deregister.xml -ap protected -s 100 -i 127.0.0.1 -p 5061 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 004: OK
+
+TEST 005: 200 De-Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -sf 01-uac-deregister.xml -ap protected -s 200 -i 127.0.0.1 -p 5062 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 005: OK
+

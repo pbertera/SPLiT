@@ -1,0 +1,36 @@
+**************************
+Test 02: Registraion and basic call with Contact params
+**************************
+
+TEST 001: 100 Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -set params custom=xyz100 -sf 02-uac-register.xml -ap protected -s 100 -i 127.0.0.1 -p 5061 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 001: OK
+
+TEST 002: 200 Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -set params custom=xyz100 -sf 02-uac-register.xml -ap protected -s 200 -i 127.0.0.1 -p 5062 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 002: OK
+
+TEST 003: SIPp scenario 02-uac.xml
+    TEST_COMMAND: /opt/sipp-master/sipp -set ua 200 -sf 02-uac.xml -i 127.0.0.1 -p 5062 -s 100 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 003: OK
+
+TEST 004: X-Reflected-Domain.dump exists
+    TEST_COMMAND: test -f X-Reflected-Domain.dump
+    TEST 004: KO
+
+TEST 005: X-Reflected-Params.dump exists
+    TEST_COMMAND: test -f X-Reflected-Params.dump
+    TEST 005: KO
+
+TEST 006: Check param values
+    TEST_COMMAND: test "X-Reflected-Params: custom=xyz100" = "X-Reflected-Params: custom=xyz100"
+    TEST 006: OK
+
+TEST 004: 100 De-Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -set params custom=xyz100 -sf 02-uac-deregister.xml -ap protected -s 100 -i 127.0.0.1 -p 5061 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 004: OK
+
+TEST 005: 200 De-Registration
+    TEST_COMMAND: /opt/sipp-master/sipp -set params custom=xyz100 -sf 02-uac-deregister.xml -ap protected -s 200 -i 127.0.0.1 -p 5062 -m 1 -default_behaviors -bye 127.0.0.1:5060
+    TEST 005: OK
+

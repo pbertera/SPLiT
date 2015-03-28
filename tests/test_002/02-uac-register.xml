@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+ REGISTER an UA the Contact header contains a custom parameter
+-->
+<scenario name="register_client">
+    <Global variables="params"/>
+    <send retrans="500">
+      <![CDATA[
+        REGISTER sip:[remote_ip] SIP/2.0
+        Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch]
+        Max-Forwards: 70
+        From: <sip:[service]@[remote_ip]>;tag=[call_number]
+        To: <sip:[service]@[remote_ip]>
+        Call-ID: [call_id]
+        CSeq: 1 REGISTER
+        Contact: <sip:[service]@[local_ip]:[local_port];[$params]>
+        Allow: INVITE, CANCEL, BYE, ACK, REGISTER, OPTIONS, REFER, SUBSCRIBE, NOTIFY, MESSAGE, INFO, PRACK, UPDATE
+        Allow-Events: talk,hold
+        Expires: 3600
+        User-Agent: SIPp
+        Content-Length: 0
+      ]]>
+   </send>
+   <recv response="401" auth="true">
+   </recv>
+
+   <send retrans="500">
+      <![CDATA[
+        REGISTER sip:[remote_ip] SIP/2.0
+        Via: SIP/2.0/UDP [local_ip]:[local_port];branch=[branch]
+        Max-Forwards: 70
+        From: <sip:[service]@[remote_ip]>;tag=[call_number]
+        To: <sip:[service]@[remote_ip]>
+        Call-ID: [call_id]
+        CSeq: 1 REGISTER
+        Contact: <sip:[service]@[local_ip]:[local_port];[$params]>
+        [authentication]
+        Allow: INVITE, CANCEL, BYE, ACK, REGISTER, OPTIONS, REFER, SUBSCRIBE, NOTIFY, MESSAGE, INFO, PRACK, UPDATE
+        Allow-Events: talk,hold
+        Expires: 3600
+        User-Agent: SIPp
+        Content-Length: 0
+    ]]>
+   </send>
+   <recv response="200">
+  </recv>
+</scenario>
