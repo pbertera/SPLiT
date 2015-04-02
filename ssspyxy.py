@@ -241,7 +241,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 md = rx_branch.search(line)
                 if md:
                     branch=md.group(1)
-                    via = "%s;branch=%sm" % (self.server.topvia, branch)
+                    via = "%s;branch=%s" % (self.server.topvia, branch)
                     data.append(via)
                     main_logger.debug("Adding Top Via header: %s" % via)
                 # rport processing
@@ -509,7 +509,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             if registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.changeRequestUri()
-                data = self.addTopVia()
+                self.data = self.addTopVia()
                 data = self.removeRouteHeader()
                 data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
