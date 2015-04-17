@@ -18,14 +18,21 @@
 
 import logging
 
-def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(asctime)s %(levelname)s %(message)s', handler=None):
+def setup_logger(logger_name, log_file=None, debug=False, str_format='%(asctime)s %(levelname)s %(message)s', handler=None):
+    """ Register a loggin instance with name `logger_name`
+    """
     l = logging.getLogger(logger_name)
-    l.setLevel(level)
+    
+    if debug == True:
+        l.setLevel(logging.DEBUG)
+    else:
+        l.setLevel(logging.INFO)
+
     formatter = logging.Formatter(str_format)
     if handler:
         handler.setFormatter(formatter)
         l.addHandler(handler)
-        return
+        return l
     elif log_file:
         fileHandler = logging.FileHandler(log_file, mode='w')
         fileHandler.setFormatter(formatter)
@@ -35,4 +42,4 @@ def setup_logger(logger_name, log_file=None, level=logging.INFO, str_format='%(a
         streamHandler.setFormatter(formatter)
         l.addHandler(streamHandler)
 
-
+    return l

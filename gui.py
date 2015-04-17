@@ -49,7 +49,6 @@ class MessagesQueueLogger(QueueLogger):
 
 
 class MainApplication:
-    
     def __init__(self, root, options, main_logger, server=None):
         self.root = root
         # bring in fron hack
@@ -127,23 +126,10 @@ class MainApplication:
         self.log_messages.grid(row=0, column=0, sticky=NSEW)
 
         self.sip_queue = Queue.Queue()
-        utils.setup_logger('sip_widget_logger', log_file=None, level=logging.DEBUG, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=self.sip_queue))
-        #self.update_widget(self.sip_trace, sip_queue)
-        #self.update_sip_trace_widget()
+        self.sip_trace_logger = utils.setup_logger('sip_widget_logger', log_file=None, debug=True, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=self.sip_queue))
         
-        self.sip_trace_logger = logging.getLogger('sip_widget_logger')
-        #sip_logger = self.sip_trace_logger 
-        
-        if self.options.debug == True:
-            level=logging.DEBUG
-        else:
-            level=logging.INFO
- 
         self.log_queue = Queue.Queue()
-        utils.setup_logger('main_logger', options.logfile, level, handler=MessagesQueueLogger(queue=self.log_queue))
-        #self.update_widget(self.log_messages, log_queue)
-        #self.update_log_messages_widget()
-        
+        utils.setup_logger('main_logger', options.logfile, self.options.debug, handler=MessagesQueueLogger(queue=self.log_queue))
 
         row = 0
         self.gui_debug = BooleanVar()
