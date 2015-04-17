@@ -76,12 +76,9 @@ rx_expires = re.compile("^Expires: (.*)$")
 rx_authorization = re.compile("^Authorization: +\S{6} (.*)")
 rx_kv= re.compile("([^=]*)=(.*)")
 
-# global dictionnary
-#recordroute = ""
-#topvia = ""
-auth = {}
-
 def hexdump( chars, sep, width ):
+    """Dump chars in hex and ascii format
+    """
     data = []
     while chars:
         line = chars[:width]
@@ -108,6 +105,7 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.options = options
         
         self.registrar = {}
+        self.auth = {}
         self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (server_address[0], server_address[1])
         self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
 
@@ -358,14 +356,14 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             self.data.pop(auth_index)
            
                 
-        if len(authorization)> 0 and auth.has_key(fromm):
-            nonce = auth[fromm]
+        if len(authorization)> 0 and self.server.auth.has_key(fromm):
+            nonce = self.server.auth[fromm]
             if not self.checkAuthorization(authorization,self.server.options.password,nonce):
                 self.sendResponse("403 Forbidden")
                 return
         else:
             nonce = generateNonce(32)
-            auth[fromm]=nonce
+            self.server.auth[fromm]=nonce
             header = "WWW-Authenticate: Digest realm=\"%s\", nonce=\"%s\"" % ("dummy",nonce)
             self.data.insert(6,header)
             self.sendResponse("401 Unauthorized")

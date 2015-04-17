@@ -19,7 +19,16 @@
 import logging
 
 def setup_logger(logger_name, log_file=None, debug=False, str_format='%(asctime)s %(levelname)s %(message)s', handler=None):
-    """ Register a loggin instance with name `logger_name`
+    """Register a logging instance with name `logger_name`
+
+    Args:
+        logger_name (str): the logger instance name, you can retreive the instance using `logging.getLogger("logger_name")`
+        log_file (str, optional): if defined a `logging.FileHandler` will be used, default `None`
+        debug (bool, optional): if `True` the logger level will be `logging.DEBUG` else `logging.INFO`
+        str_format (str, optional): the logger format string, default is '%(asctime)s %(levelname)s %(message)s'
+        handler (logging.Handler, optional): if present the handler will be added to the logger
+
+    Returns: the ``logging.Logger` instance
     """
     l = logging.getLogger(logger_name)
     
