@@ -75,28 +75,28 @@ class MainFrame:
         tk.Checkbutton(self.settings_frame, variable=self.gui_debug, command=self.gui_debug_action).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
 
-        self.gui_redirect = tk.BooleanVar()
-        self.gui_redirect.set(self.options.redirect)
+        self.gui_sip_redirect = tk.BooleanVar()
+        self.gui_sip_redirect.set(self.options.sip_redirect)
         tk.Label(self.settings_frame, text="Redirect server:").grid(row=row, column=0, sticky=tk.W)
-        tk.Checkbutton(self.settings_frame, variable=self.gui_redirect, command=self.gui_redirect_action).grid(row=row, column=1, sticky=tk.W)
+        tk.Checkbutton(self.settings_frame, variable=self.gui_sip_redirect, command=self.gui_sip_redirect_action).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
         
-        self.gui_ip_address = tk.StringVar()
-        self.gui_ip_address.set(self.options.ip_address)
+        self.gui_sip_ip_address = tk.StringVar()
+        self.gui_sip_ip_address.set(self.options.ip_address)
         tk.Label(self.settings_frame, text="IP Address:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_ip_address, width=15).grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_ip_address, width=15).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
    
-        self.gui_port = tk.IntVar()
-        self.gui_port.set(self.options.port)
+        self.gui_sip_port = tk.IntVar()
+        self.gui_sip_port.set(self.options.sip_port)
         tk.Label(self.settings_frame, text="Port:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_port, width=5).grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_port, width=5).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
  
-        self.gui_password = tk.StringVar()
-        self.gui_password.set(self.options.password)
+        self.gui_sip_password = tk.StringVar()
+        self.gui_sip_password.set(self.options.sip_password)
         tk.Label(self.settings_frame, text="Password:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_password, width=15).grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_password, width=15).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
  
         self.control_button = tk.Button(self.settings_frame, text="Start SIP Proxy", command=self.start_sip_proxy)
@@ -150,17 +150,17 @@ class MainFrame:
 
     def start_sip_proxy(self):
         self.main_logger.debug("SIP Proxy: Starting thread")
-        self.options.ip_address = self.gui_ip_address.get()
-        self.options.port = self.gui_port.get()
-        self.options.password = self.gui_password.get()
+        self.options.ip_address = self.gui_sip_ip_address.get()
+        self.options.sip_port = self.gui_sip_port.get()
+        self.options.sip_password = self.gui_sip_password.get()
         self.main_logger.info(time.strftime("Starting proxy at %a, %d %b %Y %H:%M:%S ", time.localtime()))
     
         self.main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
-        self.main_logger.debug("Authentication password: %s" % self.options.password)
+        self.main_logger.debug("Authentication password: %s" % self.options.sip_password)
         self.main_logger.debug("Logfile: %s" % self.options.logfile)
  
         try:
-            self.server = proxy.SipTracedUDPServer((self.options.ip_address, self.options.port), proxy.UDPHandler, self.sip_trace_logger, self.main_logger, self.options)
+            self.server = proxy.SipTracedUDPServer((self.options.ip_address, self.options.sip_port), proxy.UDPHandler, self.sip_trace_logger, self.main_logger, self.options)
             self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()
@@ -171,7 +171,7 @@ class MainFrame:
         
         self.main_logger.debug("Using the top Via header: %s" % self.server.topvia) 
         
-        if self.options.redirect:
+        if self.options.sip_redirect:
             self.main_logger.debug("Working in redirect server mode")
         else:
             self.main_logger.debug("Using the Record-Route header: %s" % self.server.recordroute) 
@@ -193,12 +193,12 @@ class MainFrame:
             self.main_logger.setLevel(logging.INFO)
         self.options.debug = self.gui_debug.get()
 
-    def gui_redirect_action(self):
-        if self.gui_redirect.get():
+    def gui_sip_redirect_action(self):
+        if self.gui_sip_redirect.get():
             self.main_logger.debug("Activating Redirect server")
         else:
             self.main_logger.debug("Deactivating Redirect Server")
-        self.options.redirect = self.gui_redirect.get()
+        self.options.redirect = self.gui_sip_redirect.get()
 
 
 class SipLogFrame:
