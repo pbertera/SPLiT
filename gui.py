@@ -114,6 +114,9 @@ class MainFrame:
         self.sip_queue = Queue.Queue()
         self.sip_trace_logger = utils.setup_logger('sip_widget_logger', log_file=None, debug=True, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=self.sip_queue))
     
+        self.log_queue = Queue.Queue()
+        utils.setup_logger('main_logger', options.logfile, self.options.debug, handler=MessagesQueueLogger(queue=self.log_queue))
+    
     def get_frame(self): 
         return self.frame
 
@@ -227,7 +230,6 @@ class SipLogFrame:
         self.sip_trace_pause_button = tk.Button(self.sip_commands_frame, text="Pause", command=self.pause_sip_trace)
         self.sip_trace_pause_button.grid(row=row, column=1, sticky=tk.N)
         
-     
     def get_frame(self): 
         return self.frame
     
@@ -292,13 +294,10 @@ class LogFrame:
         self.log_messages_clear_button = tk.Button(self.log_commands_frame, text="Clear", command=self.clear_log_messages)
         self.log_messages_clear_button.grid(row=row, column=0, sticky=tk.N)
         
-        self.log_messages_pause_button = tk.Button(self.log_commands_frame, text="PPause", command=self.pause_log_messages)
+        self.log_messages_pause_button = tk.Button(self.log_commands_frame, text="Pause", command=self.pause_log_messages)
         self.log_messages_pause_button.grid(row=row, column=1, sticky=tk.N)
         row = row + 1
 
-        self.log_queue = Queue.Queue()
-        utils.setup_logger('main_logger', options.logfile, self.options.debug, handler=MessagesQueueLogger(queue=self.log_queue))
-        self.start_log_messages()
 
     def get_frame(self): 
         return self.frame
@@ -359,6 +358,8 @@ class MainApplication:
 
         self.log_handler = LogFrame(self.root, self.options, self.main_logger)
         self.log_frame = self.log_handler.get_frame()
+        self.log_handler.log_queue = self.main_handler.log_queue
+        self.log_handler.start_log_messages()
 
         self.notebook.add(self.main_frame, text='Main', padding=0)
         self.notebook.add(self.sip_frame, text='SIP Trace', padding=0)
@@ -370,7 +371,3 @@ class MainApplication:
     
     def cleanup_on_exit(self):
         self.root.quit() 
-
-   
-
-
