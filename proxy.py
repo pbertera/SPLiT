@@ -103,7 +103,8 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.sip_logger = sip_logger
         self.main_logger = main_logger
         self.options = options
-        
+       
+        self.allow_reuse_address = True
         self.registrar = {}
         self.auth = {}
         self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (server_address[0], server_address[1])
