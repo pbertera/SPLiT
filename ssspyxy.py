@@ -64,7 +64,10 @@ if __name__ == "__main__":
         root = tk.Tk()
         app = gui.MainApplication(root, options, main_logger)
         root.title(sys.argv[0])
-        root.mainloop()
+        try:
+            root.mainloop()
+        except KeyboardInterrupt:
+            main_logger.info("Exiting.") 
     else:
         try:
             server = proxy.SipTracedUDPServer((options.ip_address, options.port), proxy.UDPHandler, sip_logger, main_logger, options)
