@@ -62,7 +62,7 @@ class MainFrame:
         self.frame.rowconfigure(1, weight=1)
         
         # Settings control frame
-        self.settings_frame = tk.Frame(self.frame)
+        self.settings_frame = tk.LabelFrame(self.frame, text="Settings", padx=5, pady=5)
         self.settings_frame.grid(row=0, column=0, sticky=tk.N, padx=5, pady=5)
         # Registrar frame 
         self.registrar_frame = tk.Frame(self.frame)
@@ -99,7 +99,7 @@ class MainFrame:
         tk.Entry(self.settings_frame, textvariable=self.gui_password, width=15).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
  
-        self.control_button = tk.Button(self.settings_frame, text="Run", command=self.run_server)
+        self.control_button = tk.Button(self.settings_frame, text="Start SIP Proxy", command=self.start_sip_proxy)
         self.control_button.grid(row=row, column=0, sticky=tk.N)
         self.registrar_button = tk.Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
         self.registrar_button.grid(row=row, column=1, sticky=tk.N)
@@ -119,6 +119,12 @@ class MainFrame:
     
     def get_frame(self): 
         return self.frame
+
+    def get_sip_queue(self):
+        return self.sip_queue
+    
+    def get_log_queue(self):
+        return self.log_queue
 
     def load_registrar(self):
         self.registrar_text.config(state='normal')
@@ -142,8 +148,8 @@ class MainFrame:
         self.registrar_text.see(tk.END)
         self.registrar_text.config(state='disabled')
 
-    def run_server(self):
-        self.main_logger.debug("Starting thread")
+    def start_sip_proxy(self):
+        self.main_logger.debug("SIP Proxy: Starting thread")
         self.options.ip_address = self.gui_ip_address.get()
         self.options.port = self.gui_port.get()
         self.options.password = self.gui_password.get()
@@ -158,7 +164,7 @@ class MainFrame:
             self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()
-            self.control_button.configure(text="Stop", command=self.stop_server)
+            self.control_button.configure(text="Stop SIP Proxy", command=self.stop_sip_proxy)
         except Exception, e:
             self.main_logger.error("Cannot start the server: %s" % e)
             raise e
@@ -170,13 +176,13 @@ class MainFrame:
         else:
             self.main_logger.debug("Using the Record-Route header: %s" % self.server.recordroute) 
         
-    def stop_server(self):
+    def stop_sip_proxy(self):
         self.main_logger.debug("Stopping thread")
         self.server.shutdown()
         self.server.socket.close()
         self.server = None
         self.main_logger.debug("Stopped thread")
-        self.control_button.configure(text="Run", command=self.run_server)
+        self.control_button.configure(text="Start SIP Proxy", command=self.start_sip_proxy)
 
     def gui_debug_action(self):
         if self.gui_debug.get():
@@ -209,8 +215,8 @@ class SipLogFrame:
         # let the second row grow
         self.frame.rowconfigure(1, weight=1)
         
-        self.sip_commands_frame = tk.Frame(self.frame)
-        self.sip_commands_frame.grid(row=0, column=0, sticky=tk.N, padx=4, pady=5)
+        self.sip_commands_frame = tk.LabelFrame(self.frame, text="Controls", padx=5, pady=5)
+        self.sip_commands_frame.grid(row=0, column=0, sticky=tk.NSEW, padx=4, pady=5)
         
         self.sip_trace_frame = tk.Frame(self.frame)
         self.sip_trace_frame.grid(row=1, column=0, sticky=tk.NSEW)
@@ -250,7 +256,7 @@ class SipLogFrame:
 
     def update_sip_trace_widget(self):
         self.update_widget(self.sip_trace, self.sip_queue) 
-        self.sip_trace_alarm = self.sip_trace.after(10, self.update_sip_trace_widget)
+        self.sip_trace_alarm = self.sip_trace.after(20, self.update_sip_trace_widget)
      
     def update_widget(self, widget, queue):
         widget.config(state='normal')
@@ -276,10 +282,9 @@ class LogFrame:
         # let the second row grow
         self.frame.rowconfigure(1, weight=1)
 
-        self.log_commands_frame = tk.Frame(self.frame)
-        self.log_commands_frame.grid(row=0, column=0, sticky=tk.N, padx=4, pady=5)
+        self.log_commands_frame = tk.LabelFrame(self.frame, text="Controls", padx=5, pady=5)
+        self.log_commands_frame.grid(row=0, column=0, sticky=tk.NSEW, padx=4, pady=5)
 
-       
         self.log_messages_frame = tk.Frame(self.frame)
         self.log_messages_frame.grid(row=1, column=0, sticky=tk.NSEW)
         # let the SIP trace growing
@@ -297,7 +302,6 @@ class LogFrame:
         self.log_messages_pause_button = tk.Button(self.log_commands_frame, text="Pause", command=self.pause_log_messages)
         self.log_messages_pause_button.grid(row=row, column=1, sticky=tk.N)
         row = row + 1
-
 
     def get_frame(self): 
         return self.frame
@@ -319,19 +323,16 @@ class LogFrame:
         
     def update_log_messages_widget(self):
         self.update_widget(self.log_messages, self.log_queue) 
-        self.log_messages_alarm = self.log_messages.after(10, self.update_log_messages_widget)
+        self.log_messages_alarm = self.log_messages.after(20, self.update_log_messages_widget)
 
     def update_widget(self, widget, queue):
         widget.config(state='normal')
         while not queue.empty():
-            #line = queue.get_nowait()
             line = queue.get()
             widget.insert(tk.END, line)
             widget.see(tk.END)  # Scroll to the bottom
             widget.update_idletasks()
         widget.config(state='disabled')
-        #widget.after(10, self.update_widget, widget, queue)
-
 
 class MainApplication:
     def __init__(self, root, options, main_logger):
@@ -353,20 +354,21 @@ class MainApplication:
 
         self.sip_handler = SipLogFrame(self.root, self.options, self.main_logger)
         self.sip_frame = self.sip_handler.get_frame()
-        self.sip_handler.sip_queue = self.main_handler.sip_queue
+        self.sip_handler.sip_queue = self.main_handler.get_sip_queue()
         self.sip_handler.start_sip_trace()
 
         self.log_handler = LogFrame(self.root, self.options, self.main_logger)
         self.log_frame = self.log_handler.get_frame()
-        self.log_handler.log_queue = self.main_handler.log_queue
+        self.log_handler.log_queue = self.main_handler.get_log_queue()
         self.log_handler.start_log_messages()
 
         self.notebook.add(self.main_frame, text='Main', padding=0)
         self.notebook.add(self.sip_frame, text='SIP Trace', padding=0)
         self.notebook.add(self.log_frame, text='Log', padding=0)
-        self.notebook.grid(row=0, column=0, sticky=tk.NSEW)       
         
+        self.notebook.grid(row=0, column=0, sticky=tk.NSEW)       
         self.notebook.grid(row=0, sticky=tk.NSEW)
+        
         self.root.wm_protocol("WM_DELETE_WINDOW", self.cleanup_on_exit)
     
     def cleanup_on_exit(self):
