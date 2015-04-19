@@ -113,11 +113,11 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
 class UDPHandler(SocketServer.BaseRequestHandler):   
     
     def debugRegister(self):
-        self.server.main_logger.debug("*** REGISTRAR ***")
-        self.server.main_logger.debug("*****************")
+        self.server.main_logger.debug("SIP: *** REGISTRAR ***")
+        self.server.main_logger.debug("SIP: *****************")
         for key in self.server.registrar.keys():
-            self.server.main_logger.debug("%s -> %s" % (key,self.server.registrar[key][0]))
-        self.server.main_logger.debug("*****************")
+            self.server.main_logger.debug("SIP: %s -> %s" % (key,self.server.registrar[key][0]))
+        self.server.main_logger.debug("SIP: *****************")
 
     def checkAuthorization(self, authorization, password, nonce, method="REGISTER"):
         hash = {}
@@ -130,7 +130,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 hash[key]=value
         # check nonce (response/request)
         if hash["nonce"] != nonce:
-            self.server.main_logger.warning("Authentication: Incorrect nonce")
+            self.server.main_logger.warning("SIP: Authentication: Incorrect nonce")
             return False
 
         a1="%s:%s:%s" % (hash["username"],hash["realm"], password)
@@ -140,10 +140,10 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         b = "%s:%s:%s" % (ha1,nonce,ha2)
         expected = hashlib.md5(b).hexdigest()
         if expected == hash["response"]:
-            self.server.main_logger.debug("Authentication: succeeded")
+            self.server.main_logger.debug("SIP: Authentication: succeeded")
             return True
-        self.server.main_logger.warning("Authentication: expected= %s" % expected)
-        self.server.main_logger.warning("Authentication: response= %s" % hash["response"])
+        self.server.main_logger.warning("SIP: Authentication: expected= %s" % expected)
+        self.server.main_logger.warning("SIP: Authentication: response= %s" % hash["response"])
         return False
 
     def changeRequestUri(self):
@@ -154,19 +154,19 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             uri = md.group(2)
             if self.server.registrar.has_key(uri):
                 uri = "sip:%s" % self.server.registrar[uri][0]
-                self.server.main_logger.debug("changeRequestUri: %s -> %s" % ( self.data[0] , "%s %s SIP/2.0" % (method,uri)))
+                self.server.main_logger.debug("SIP: changeRequestUri: %s -> %s" % ( self.data[0] , "%s %s SIP/2.0" % (method,uri)))
                 self.data[0] = "%s %s SIP/2.0" % (method,uri)
             else:
-                self.server.main_logger.debug("URI not found in Registrar: %s leaving the URI unchanged" % uri)
+                self.server.main_logger.debug("SIP: URI not found in Registrar: %s leaving the URI unchanged" % uri)
 
     def removeHeader(self, regex):
-        self.server.main_logger.debug("Removing header with regex %s" % regex.pattern)
+        self.server.main_logger.debug("SIP: Removing header with regex %s" % regex.pattern)
         data = []
         for line in self.data:
             if not regex.search(line):
                 data.append(line)
             else:
-                self.server.main_logger.debug("Removed %s" % line)
+                self.server.main_logger.debug("SIP: Removed %s" % line)
         return data
 
     def removeMaxForward(self):
@@ -204,7 +204,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                     branch=md.group(1)
                     via = "%s;branch=%s" % (self.server.topvia, branch)
                     data.append(via)
-                    self.server.main_logger.debug("Adding Top Via header: %s" % via)
+                    self.server.main_logger.debug("SIP: Adding Top Via header: %s" % via)
                 # rport processing
                 if rx_rport.search(line):
                     text = "received=%s;rport=%d" % self.client_address
@@ -212,7 +212,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 else:
                     text = "received=%s" % self.client_address[0]
                     via = "%s;%s" % (line,text)
-                self.server.main_logger.debug("Adding Top Via header: %s" % via)
+                self.server.main_logger.debug("SIP: Adding Top Via header: %s" % via)
                 data.append(via)
             else:
                 data.append(line)
@@ -235,7 +235,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             return True
         else:
             del self.server.registrar[uri]
-            self.server.main_logger.warning("Registration for %s has expired" % uri)
+            self.server.main_logger.warning("SIP: Registration for %s has expired" % uri)
             return False
     
     def getSocketInfo(self,uri):
@@ -266,7 +266,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         return origin
         
     def sendResponse(self,code):
-        self.server.main_logger.debug("Sending Response %s" % code)
+        self.server.main_logger.debug("SIP: Sending Response %s" % code)
         request_uri = "SIP/2.0 " + code
         self.data[0]= request_uri
         index = 0
@@ -297,15 +297,15 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
     
     def sendTo(self, data, client_address, socket=None):
-        self.server.main_logger.debug("Sending to %s:%d" % (client_address))
+        self.server.main_logger.debug("SIP: Sending to %s:%d" % (client_address))
         if socket:
             sent = socket.sendto(data, client_address)
         else:
             sent = self.socket.sendto(data, client_address)
-        self.server.main_logger.debug("Succesfully sent %d bytes" % sent)
+        self.server.main_logger.debug("SIP: Succesfully sent %d bytes" % sent)
 
     def processRegister(self):
-        self.server.main_logger.info("Register received: %s" % self.data[0])
+        self.server.main_logger.info("SIP: Register received: %s" % self.data[0])
         fromm = ""
         contact = ""
         contact_expires = ""
@@ -326,12 +326,12 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 md = rx_uri.search(line)
                 if md:
                     contact = "%s@%s" % (md.group(1), md.group(2))
-                    self.server.main_logger.debug("Registration: Contact from rx_uri regex: %s" % contact)
+                    self.server.main_logger.debug("SIP: Registration: Contact from rx_uri regex: %s" % contact)
                 else:
                     md = rx_addr.search(line)
                     if md:
                         contact = md.group(1)
-                        self.server.main_logger.debug("Registration: Contact from rx_addr regex: %s" % contact)
+                        self.server.main_logger.debug("SIP: Registration: Contact from rx_addr regex: %s" % contact)
                 md = rx_contact_expires.search(line)
                 if md:
                     contact_expires = md.group(1)
@@ -390,9 +390,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             validity = now + expires
             
     
-        self.server.main_logger.info("Registration: From: %s - Contact: %s" % (fromm,contact))
-        self.server.main_logger.debug("Registration: Client address: %s:%s" % self.client_address)
-        self.server.main_logger.debug("Registration: Expires= %d" % expires)
+        self.server.main_logger.info("SIP: Registration: From: %s - Contact: %s" % (fromm,contact))
+        self.server.main_logger.debug("SIP: Registration: Client address: %s:%s" % self.client_address)
+        self.server.main_logger.debug("SIP: Registration: Expires= %d" % expires)
         self.server.registrar[fromm]=[contact,self.socket,self.client_address,validity]
         self.debugRegister()
         self.sendResponse("200 0K")
@@ -400,7 +400,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     def is_redirect(function):
         def _is_redirect(self, *args, **kwargs):
             if self.server.options.redirect:
-                self.server.main_logger.debug("Acting as a redirect server")
+                self.server.main_logger.debug("SIP: Acting as a redirect server")
                 
                 md = rx_request_uri.search(self.data[0])
                 if md:
@@ -408,24 +408,24 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                     uri = md.group(2)
                 else:
                     if rx_code.search(self.data[0]):
-                        self.server.main_logger.debug("Received code, ignoring")
+                        self.server.main_logger.debug("SIP: Received code, ignoring")
                     return
                 if method.upper() == "ACK":
-                    self.server.main_logger.debug("Received ACK, ignoring")
+                    self.server.main_logger.debug("SIP: Received ACK, ignoring")
                     return
                 if method.upper() != "INVITE":
-                    self.server.main_logger.debug("non-INVITE received")
+                    self.server.main_logger.debug("SIP: non-INVITE received")
                     self.sendResponse("405 Method Not Allowed")
                     return
 
                 origin = self.getOrigin()
                 if len(origin) == 0 or not self.server.registrar.has_key(origin):
-                    self.server.main_logger.debug("Invite: Origin not found: %s" % origin)
+                    self.server.main_logger.debug("SIP: Invite: Origin not found: %s" % origin)
                     self.sendResponse("400 Bad Request")
                     return
                 destination = self.getDestination(with_params=True)
                 if len(destination) > 0:
-                    self.server.main_logger.debug("Destination: %s" % destination)
+                    self.server.main_logger.debug("SIP: Destination: %s" % destination)
                     if self.server.registrar.has_key(destination) and self.checkValidity(destination):
                         contact = self.server.registrar[destination][0]
                         header = "Contact: <sip:%s>" % contact
@@ -438,35 +438,35 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                         self.data = self.removeMaxForward()
                         #self.data = self.addTopVia()
                         self.data = self.removeRouteHeader()
-                        self.server.main_logger.debug("Destination %s" % header)
+                        self.server.main_logger.debug("SIP: Destination %s" % header)
                         self.data.insert(6,header)
                         self.sendResponse("302 Moved Temporarily")
-                        self.server.main_logger.debug("Destination Contact: %s" % contact)
+                        self.server.main_logger.debug("SIP: Destination Contact: %s" % contact)
                         return
                     else:
-                        self.server.main_logger.info("Destination not found in registrar")
+                        self.server.main_logger.info("SIP: Destination not found in registrar")
                         self.sendResponse("404 Not Found")
                         return
                 else:
-                    self.server.main_logger.error("Error retreiving destination")
+                    self.server.main_logger.error("SIP: Error retreiving destination")
                     self.sendResponse("404 Not Found") #TODO: is the right message here ?
                     return
             else:
-                self.server.main_logger.debug("Running in proxy mode")
+                self.server.main_logger.debug("SIP: Running in proxy mode")
             return function(self)
         return _is_redirect
 
     @is_redirect
     def processInvite(self):
-        self.server.main_logger.debug("INVITE received")
+        self.server.main_logger.debug("SIP: INVITE received")
         origin = self.getOrigin()
         if len(origin) == 0 or not self.server.registrar.has_key(origin):
-            self.server.main_logger.debug("Invite: Origin not found: %s" % origin)
+            self.server.main_logger.debug("SIP: Invite: Origin not found: %s" % origin)
             self.sendResponse("400 Bad Request")
             return
         destination = self.getDestination(with_params=True)
         if len(destination) > 0:
-            self.server.main_logger.info("Invite: destination %s" % destination)
+            self.server.main_logger.info("SIP: Invite: destination %s" % destination)
             if self.server.registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.changeRequestUri()
@@ -475,7 +475,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text , claddr, socket)
-                self.server.main_logger.debug("Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
+                self.server.main_logger.debug("SIP: Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
                 self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
                 self.sendResponse("480 Temporarily Unavailable")
@@ -484,10 +484,10 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 
     @is_redirect
     def processAck(self):
-        self.server.main_logger.info("ACK received: %s" % self.data[0])
+        self.server.main_logger.info("SIP: ACK received: %s" % self.data[0])
         destination = self.getDestination()
         if len(destination) > 0:
-            self.server.main_logger.info("Ack: destination %s" % destination)
+            self.server.main_logger.info("SIP: ACK: destination %s" % destination)
             if self.server.registrar.has_key(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.data = self.addTopVia()
@@ -495,19 +495,19 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
-                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("SIP: Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
     @is_redirect
     def processNonInvite(self):
-        self.server.main_logger.info("NonInvite received: %s" % self.data[0])
+        self.server.main_logger.info("SIP: NonInvite received: %s" % self.data[0])
         origin = self.getOrigin()
         if len(origin) == 0 or not self.server.registrar.has_key(origin):
-            self.server.main_logger.debug("Origin not found: %s" % origin)
+            self.server.main_logger.debug("SIP: Origin not found: %s" % origin)
             self.sendResponse("400 Bad Request")
             return
         destination = self.getDestination()
         if len(destination) > 0:
-            self.server.main_logger.info("Destination %s" % destination)
+            self.server.main_logger.info("SIP: Destination %s" % destination)
             if self.server.registrar.has_key(destination) and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 self.changeRequestUri()
@@ -525,14 +525,14 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     
     @is_redirect
     def processCode(self):
-        self.server.main_logger.info("Code received: %s" % self.data[0])
+        self.server.main_logger.info("SIP: Code received: %s" % self.data[0])
         origin = self.getOrigin()
         if len(origin) > 0:
-            self.server.main_logger.debug("Code: origin %s" % origin)
+            self.server.main_logger.debug("SIP: Code: origin %s" % origin)
             if self.server.registrar.has_key(origin):
                 socket,claddr = self.getSocketInfo(origin)
                 data = self.removeRouteHeader()
-                self.server.main_logger.debug("Code received: %s" % self.data[0])
+                self.server.main_logger.debug("SIP: Code received: %s" % self.data[0])
                 data = self.removeTopVia()
                 text = string.join(data,"\r\n")
                 self.sendTo(text,claddr, socket)
@@ -577,7 +577,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             elif rx_code.search(request_uri):
                 self.processCode()
             else:
-                self.server.main_logger.error("request_uri %s" % request_uri)          
+                self.server.main_logger.error("SIP: request_uri %s" % request_uri)          
                 #print "message %s unknown" % self.data
     
     def handle(self):
@@ -590,8 +590,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             self.processRequest()
         else:
             if len(data) > 4:
-                self.server.sip_logger.warning("Received from %s:%d (%d bytes):\n\n" %  (self.client_address[0], self.client_address[1], len(data)))
+                self.server.sip_logger.debug("Received from %s:%d (%d bytes):\n\n" %  (self.client_address[0], self.client_address[1], len(data)))
                 mess = hexdump(data,' ',16)
-                self.server.sip_logger.debug('Hex data:\n' + '\n'.join(mess))
+                self.server.sip_logger.debug('SIP Hex data:\n' + '\n'.join(mess))
 
 
