@@ -17,11 +17,17 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import optparse
+import threading
 import sys
+import time
 
 import gui
 import utils
 import proxy
+
+from pypxe import tftp #PyPXE TFTP service
+from pypxe import dhcp #PyPXE DHCP service
+from pypxe import http #PyPXE HTTP service
 
 if __name__ == "__main__": 
     usage = """%prog [OPTIONS]"""
@@ -48,6 +54,20 @@ if __name__ == "__main__":
     opt.add_option('--sip-password', dest='sip_password', type='string', default='protected',
             help='Athentication password (default: protected)')
     
+    opt.add_option('--tftp', dest='tftp', default=False, action='store_true',
+            help='Enable the TFTP server')
+    opt.add_option('--tftp-root', dest='tftp_root', type='string', default='tftp', action='store',
+            help='TFTP server root directory (default: tftp)')
+    opt.add_option('--tftp-port', dest='tftp_port', type='int', default=69, action='store',
+            help='TFTP server port (default: 69)')
+    
+    opt.add_option('--http', dest='http', default=False, action='store_true',
+            help='Enable the HTTP server')
+    opt.add_option('--http-root', dest='http_root', default='http', action='store',
+            help='HTTP server root directory (default: http)')
+    opt.add_option('--http-port', dest='http_port', default=80, action='store',
+            help='HTTP server port (default: 80)')
+
     options, args = opt.parse_args(sys.argv[1:])
 
     main_logger = utils.setup_logger('main_logger', options.logfile, options.debug)
@@ -70,8 +90,11 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             main_logger.info("Exiting.") 
     else:
+        running_services = []
         try:
             sip_proxy = proxy.SipTracedUDPServer((options.ip_address, options.sip_port), proxy.UDPHandler, sip_logger, main_logger, options)
+            sip_proxy_thread = threading.Thread(name='sip', target=sip_proxy.serve_forever)
+            sip_proxy_thread.daemon = True
         except Exception, e:
             main_logger.error("SIP: Cannot start the proxy: %s" % e)
             raise e
@@ -81,7 +104,29 @@ if __name__ == "__main__":
             else:
                 main_logger.debug("SIP: Using the Record-Route header: %s" % sip_proxy.recordroute) 
                 main_logger.debug("SIP: Using the top Via header: %s" % sip_proxy.topvia) 
+        
             main_logger.info("SIP: Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.sip_port))
-            sip_proxy.serve_forever()
+            sip_proxy_thread.start()
+            running_services.append(sip_proxy_thread)
+            
+            if options.tftp:
+                main_logger.info("TFTP: Starting server thread")
+                tftp_server = tftp.TFTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, netbootDirectory = options.tftp_root)
+                tftp_server_thread = threading.Thread(name='tftp', target=tftp_server.listen)
+                tftp_server_thread.daemon = True
+                tftp_server_thread.start()
+                running_services.append(tftp_server_thread)
+            
+            if options.http:
+                main_logger.info("HTTP: Starting server thread")
+                http_server = http.HTTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, netbootDirectory = options.http_root)
+                http_server_thread = threading.Thread(name='http', target=http_server.listen)
+                http_server_thread.daemon = True
+                http_server_thread.start()
+                running_services.append(http_server_thread)
+
         except KeyboardInterrupt:
-            main_logger.info("Exiting.") 
+            main_logger.info("Exiting.")
+        
+        while map(lambda x: x.isAlive(), running_services):
+            time.sleep(1)

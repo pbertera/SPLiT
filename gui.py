@@ -21,13 +21,14 @@ import Queue
 import logging
 import time
 import threading
-
-import utils
-import proxy
-
 import Tkinter as tk
 import ttk
 from ScrolledText import ScrolledText
+
+import utils
+import proxy
+from pypxe import tftp
+from pypxe import http
 
 class QueueLogger(logging.Handler):
     def __init__(self, queue):
@@ -52,7 +53,9 @@ class MainFrame:
         self.options = options
         self.frame = tk.Frame(root)
         self.main_logger = main_logger
-        self.server = None
+        self.sip_proxy = None
+        self.tftp_server = None
+        self.http_server = None
 
         # can enlarge
         self.frame.columnconfigure(0, weight=1)
@@ -69,40 +72,84 @@ class MainFrame:
         self.registrar_frame.rowconfigure(0, weight=1)
 
         row = 0
-        self.gui_debug = tk.BooleanVar()
-        self.gui_debug.set(self.options.debug)
-        tk.Label(self.settings_frame, text="Debug:").grid(row=row, column=0, sticky=tk.W)
-        tk.Checkbutton(self.settings_frame, variable=self.gui_debug, command=self.gui_debug_action).grid(row=row, column=1, sticky=tk.W)
-        row = row + 1
-
-        self.gui_sip_redirect = tk.BooleanVar()
-        self.gui_sip_redirect.set(self.options.sip_redirect)
-        tk.Label(self.settings_frame, text="Redirect server:").grid(row=row, column=0, sticky=tk.W)
-        tk.Checkbutton(self.settings_frame, variable=self.gui_sip_redirect, command=self.gui_sip_redirect_action).grid(row=row, column=1, sticky=tk.W)
+        tk.Label(self.settings_frame, text="General settings:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
         row = row + 1
         
+        self.gui_debug = tk.BooleanVar()
+        self.gui_debug.set(self.options.debug)
+        tk.Label(self.settings_frame, text="Debug:").grid(row=row, column=1, sticky=tk.W)
+        tk.Checkbutton(self.settings_frame, variable=self.gui_debug, command=self.gui_debug_action).grid(row=row, column=2, sticky=tk.W)
+        row = row + 1
+
         self.gui_sip_ip_address = tk.StringVar()
         self.gui_sip_ip_address.set(self.options.ip_address)
-        tk.Label(self.settings_frame, text="IP Address:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_sip_ip_address, width=15).grid(row=row, column=1, sticky=tk.W)
+        tk.Label(self.settings_frame, text="IP Address:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_ip_address, width=15).grid(row=row, column=2, sticky=tk.W)
         row = row + 1
-   
+       
+        tk.Label(self.settings_frame, text="TFTP Server:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
+        row = row + 1
+
+        self.gui_tftp_port = tk.IntVar()
+        self.gui_tftp_port.set(self.options.tftp_port)
+        tk.Label(self.settings_frame, text="TFTP Port:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_tftp_port, width=5).grid(row=row, column=2, sticky=tk.W)
+        row = row + 1
+        
+        self.gui_tftp_root = tk.StringVar()
+        self.gui_tftp_root.set(self.options.tftp_root)
+        tk.Label(self.settings_frame, text="TFTP Root:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_tftp_root, width=15).grid(row=row, column=2, sticky=tk.W)
+        row = row + 1
+
+        self.tftp_control_button = tk.Button(self.settings_frame, text="Start TFTP Server", command=self.start_tftp_server)
+        self.tftp_control_button.grid(row=row, column=1, sticky=tk.N)
+        row = row + 1
+
+        tk.Label(self.settings_frame, text="HTTP Server:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
+        row = row + 1
+        
+        self.gui_http_port = tk.IntVar()
+        self.gui_http_port.set(self.options.http_port)
+        tk.Label(self.settings_frame, text="HTTP Port:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_http_port, width=5).grid(row=row, column=2, sticky=tk.W)
+        row = row + 1
+        
+        self.gui_http_root = tk.StringVar()
+        self.gui_http_root.set(self.options.http_root)
+        tk.Label(self.settings_frame, text="HTTP Root:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_http_root, width=15).grid(row=row, column=2, sticky=tk.W)
+        row = row + 1
+
+        self.http_control_button = tk.Button(self.settings_frame, text="Start HTTP Server", command=self.start_http_server)
+        self.http_control_button.grid(row=row, column=1, sticky=tk.N)
+        row = row + 1
+        
+        tk.Label(self.settings_frame, text="SIP Proxy:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
+        row = row + 1
+        
+        self.gui_sip_redirect = tk.BooleanVar()
+        self.gui_sip_redirect.set(self.options.sip_redirect)
+        tk.Label(self.settings_frame, text="SIP Redirect server:").grid(row=row, column=1, sticky=tk.W)
+        tk.Checkbutton(self.settings_frame, variable=self.gui_sip_redirect, command=self.gui_sip_redirect_action).grid(row=row, column=2, sticky=tk.W)
+        row = row + 1
+        
         self.gui_sip_port = tk.IntVar()
         self.gui_sip_port.set(self.options.sip_port)
-        tk.Label(self.settings_frame, text="Port:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_sip_port, width=5).grid(row=row, column=1, sticky=tk.W)
+        tk.Label(self.settings_frame, text="SIP Port:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_port, width=5).grid(row=row, column=2, sticky=tk.W)
         row = row + 1
  
         self.gui_sip_password = tk.StringVar()
         self.gui_sip_password.set(self.options.sip_password)
-        tk.Label(self.settings_frame, text="Password:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_sip_password, width=15).grid(row=row, column=1, sticky=tk.W)
+        tk.Label(self.settings_frame, text="Password:").grid(row=row, column=1, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_password, width=15).grid(row=row, column=2, sticky=tk.W)
         row = row + 1
  
-        self.control_button = tk.Button(self.settings_frame, text="Start SIP Proxy", command=self.start_sip_proxy)
-        self.control_button.grid(row=row, column=0, sticky=tk.N)
+        self.sip_control_button = tk.Button(self.settings_frame, text="Start SIP Proxy", command=self.start_sip_proxy)
+        self.sip_control_button.grid(row=row, column=1, sticky=tk.N)
         self.registrar_button = tk.Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
-        self.registrar_button.grid(row=row, column=1, sticky=tk.N)
+        self.registrar_button.grid(row=row, column=2, sticky=tk.N)
         row = row + 1
         
         self.registrar_frame.grid(row=1, column=0, sticky=tk.NS)
@@ -130,18 +177,18 @@ class MainFrame:
         self.registrar_text.config(state='normal')
         self.registrar_text.delete(0.0, tk.END)
         
-        if self.server == None:
+        if self.sip_proxy == None:
             self.registrar_text.insert(tk.END, "Server not running\n")
             self.registrar_text.see(tk.END)
             self.registrar_text.config(state='disabled')
             return
 
-        if len(self.server.registrar) > 0:
-            for regname in self.server.registrar:
+        if len(self.sip_proxy.registrar) > 0:
+            for regname in self.sip_proxy.registrar:
                 self.registrar_text.insert(tk.END, "\n%s:\n" % regname)
-                self.registrar_text.insert(tk.END, "\t Contact: %s\n" % self.server.registrar[regname][0])
-                self.registrar_text.insert(tk.END, "\t IP: %s:%s\n" % (self.server.registrar[regname][2][0], self.server.registrar[regname][2][1]) )
-                self.registrar_text.insert(tk.END, "\t Expires: %s\n" % time.ctime(self.server.registrar[regname][3]))
+                self.registrar_text.insert(tk.END, "\t Contact: %s\n" % self.sip_proxy.registrar[regname][0])
+                self.registrar_text.insert(tk.END, "\t IP: %s:%s\n" % (self.sip_proxy.registrar[regname][2][0], self.sip_proxy.registrar[regname][2][1]) )
+                self.registrar_text.insert(tk.END, "\t Expires: %s\n" % time.ctime(self.sip_proxy.registrar[regname][3]))
         else:
             self.registrar_text.insert(tk.END, "No User Agent registered yet\n")
             
@@ -160,30 +207,76 @@ class MainFrame:
         self.main_logger.debug("Logfile: %s" % self.options.logfile)
  
         try:
-            self.server = proxy.SipTracedUDPServer((self.options.ip_address, self.options.sip_port), proxy.UDPHandler, self.sip_trace_logger, self.main_logger, self.options)
-            self.server_thread = threading.Thread(name='sip', target=self.server.serve_forever)
-            self.server_thread.daemon = True
-            self.server_thread.start()
-            self.control_button.configure(text="Stop SIP Proxy", command=self.stop_sip_proxy)
+            self.sip_proxy = proxy.SipTracedUDPServer((self.options.ip_address, self.options.sip_port), proxy.UDPHandler, self.sip_trace_logger, self.main_logger, self.options)
+            self.sip_server_thread = threading.Thread(name='sip', target=self.sip_proxy.serve_forever)
+            self.sip_server_thread.daemon = True
+            self.sip_server_thread.start()
+            self.sip_control_button.configure(text="Stop SIP Proxy", command=self.stop_sip_proxy)
         except Exception, e:
             self.main_logger.error("Cannot start the server: %s" % e)
             raise e
         
-        self.main_logger.debug("Using the top Via header: %s" % self.server.topvia) 
+        self.main_logger.debug("Using the top Via header: %s" % self.sip_proxy.topvia) 
         
         if self.options.sip_redirect:
             self.main_logger.debug("Working in redirect server mode")
         else:
-            self.main_logger.debug("Using the Record-Route header: %s" % self.server.recordroute) 
-        
+            self.main_logger.debug("Using the Record-Route header: %s" % self.sip_proxy.recordroute) 
+ 
     def stop_sip_proxy(self):
-        self.main_logger.debug("Stopping thread")
-        self.server.shutdown()
-        self.server.socket.close()
-        self.server = None
-        self.main_logger.debug("Stopped thread")
-        self.control_button.configure(text="Start SIP Proxy", command=self.start_sip_proxy)
+        self.main_logger.debug("SIP: Stopping thread")
+        self.sip_proxy.shutdown()
+        self.sip_proxy.socket.close()
+        self.sip_proxy = None
+        self.main_logger.debug("SIP: Stopped thread")
+        self.sip_control_button.configure(text="Start SIP Proxy", command=self.start_sip_proxy)
+    
+    def start_tftp_server(self):
+        self.main_logger.debug("TFTP Server: Starting thread")
+        self.options.ip_address = self.gui_sip_ip_address.get()
+        self.options.tftp_port = self.gui_tftp_port.get()
+        
+        self.main_logger.debug("TFTP Server port: %s", self.options.tftp_port)
+        try:
+            self.tftp_server = tftp.TFTPD(ip = self.options.ip_address, mode_debug = self.options.debug, logger = self.main_logger, netbootDirectory = self.options.tftp_root)
+            self.tftp_server_thread = threading.Thread(name='tftp', target=self.tftp_server.listen)
+            self.tftp_server_thread.daemon = True
+            self.tftp_server_thread.start()           
+            self.tftp_control_button.configure(text="Stop TFTP Server", command=self.stop_tftp_server)
+        except Exception, e:
+            self.main_logger.error("Cannot start the server: %s", e)
+            raise e
 
+    def stop_tftp_server(self):
+        self.main_logger.debug("TFTP: Stopping thread")
+        self.tftp_server.shutdown()
+        self.tftp_server = None
+        self.main_logger.debug("TFTP: Stopped thread")
+        self.tftp_control_button.configure(text="Start TFTP Server", command=self.start_tftp_server)
+ 
+    def start_http_server(self):
+        self.main_logger.debug("HTTP Server: Starting thread")
+        self.options.ip_address = self.gui_sip_ip_address.get()
+        self.options.http_port = self.gui_http_port.get()
+        
+        self.main_logger.debug("HTTP Server port: %s", self.options.http_port)
+        try:
+            self.http_server = http.HTTPD(ip = self.options.ip_address, mode_debug = self.options.debug, logger = self.main_logger, netbootDirectory = self.options.http_root)
+            self.http_server_thread = threading.Thread(name='http', target=self.http_server.listen)
+            self.http_server_thread.daemon = True
+            self.http_server_thread.start()           
+            self.http_control_button.configure(text="Stop HTTP Server", command=self.stop_http_server)
+        except Exception, e:
+            self.main_logger.error("HTTP: Cannot start the server: %s", e)
+            raise e
+
+    def stop_http_server(self):
+        self.main_logger.debug("HTTP: Stopping thread")
+        self.http_server.shutdown()
+        self.http_server = None
+        self.main_logger.debug("HTTP: Stopped thread")
+        self.http_control_button.configure(text="Start HTTP Server", command=self.start_http_server)
+ 
     def gui_debug_action(self):
         if self.gui_debug.get():
             self.main_logger.debug("Activating Debug")

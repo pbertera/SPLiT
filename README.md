@@ -17,8 +17,8 @@ ssspyxy is developed with hackability in mind, the main aim is to reproduce SIP 
 
 ## Installation
 
-- You need the Python 2.7 interpreter already installed, you can find on the Python [website](http://www.python.org)
-- Download the [ssspyxy.py](https://raw.githubusercontent.com/pbertera/ssspyxy/master/ssspyxy.py) file and save in your computer
+- You need the **Python 2.7** (Python 3 isn't supported yet) interpreter already installed, you can find on the Python [website](http://www.python.org)
+- Download the last release archive file from [https://github.com/pbertera/ssspyxy/releases](https://github.com/pbertera/ssspyxy/releases) and save in your computer
 - Run the script from a terminal (or a cmd.exe prompt in Windows)
 
 ## Usage
