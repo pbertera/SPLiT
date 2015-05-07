@@ -29,6 +29,13 @@ from pypxe import tftp #PyPXE TFTP service
 from pypxe import dhcp #PyPXE DHCP service
 from pypxe import http #PyPXE HTTP service
 
+DHCP_DEFAULT_BEGIN='172.16.18.99'
+DHCP_DEFAULT_END='172.16.18.120'
+DHCP_DEFAULT_SUBNET='172.16.18.0'
+DHCP_DEFAULT_GW='172.16.18.1'
+DHCP_DEFAULT_BCAST='172.16.18.255'
+DHCP_DEFAULT_DNS='172.16.18.1'
+
 if __name__ == "__main__": 
     usage = """%prog [OPTIONS]"""
     
@@ -70,23 +77,22 @@ if __name__ == "__main__":
 
     opt.add_option('--dhcp', dest='dhcp', default=False, action='store_true',
             help='Enable the DHCP server')
-    opt.add_option('--dhcp-begin', dest='dhcp_begin', default=None, action='store',
+    opt.add_option('--dhcp-begin', dest='dhcp_begin', default=DHCP_DEFAULT_BEGIN, action='store',
             help='DHCP lease range start')
-    opt.add_option('--dhcp-end', dest='dhcp_end', default=None, action='store',
+    opt.add_option('--dhcp-end', dest='dhcp_end', default=DHCP_DEFAULT_END, action='store',
             help='DHCP lease range end')
-    opt.add_option('--dhcp-subnet', dest='dhcp_subnet', default=None, action='store',
+    opt.add_option('--dhcp-subnet', dest='dhcp_subnet', default=DHCP_DEFAULT_SUBNET, action='store',
             help='DHCP lease subnet')
-    opt.add_option('--dhcp-gateway', dest='dhcp_gateway', default=None, action='store',
+    opt.add_option('--dhcp-gateway', dest='dhcp_gateway', default=DHCP_DEFAULT_GW, action='store',
             help='DHCP lease gateway')
-    opt.add_option('--dhcp-dns', dest='dhcp_dns', default=None, action='store',
+    opt.add_option('--dhcp-dns', dest='dhcp_dns', default=DHCP_DEFAULT_DNS, action='store',
             help='DHCP lease DNS')
-    opt.add_option('--dhcp-bcast', dest='dhcp_bcast', default=None, action='store',
+    opt.add_option('--dhcp-bcast', dest='dhcp_bcast', default=DHCP_DEFAULT_BCAST, action='store',
             help='DHCP lease broadcast')
-    opt.add_option('--dhcp-fileserver', dest='dhcp_fileserver', default=None, action='store',
+    opt.add_option('--dhcp-fileserver', dest='dhcp_fileserver', default='', action='store',
             help='DHCP lease fileserver IP (option 66)')
     opt.add_option('--dhcp-filename', dest='dhcp_filename', default='', action='store',
             help='DHCP lease filename (option 67)')
-
 
     options, args = opt.parse_args(sys.argv[1:])
 

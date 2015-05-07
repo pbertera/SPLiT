@@ -1,7 +1,5 @@
 '''
-
 This file contains classes and functions that implement the PyPXE DHCP service
-
 '''
 
 import socket
@@ -34,6 +32,8 @@ class DHCPD:
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.magic = struct.pack('!I', 0x63825363) #magic cookie
         self.logger = serverSettings.get('logger', None)
+        
+        self.running = True
 
         # setup logger
         if self.logger == None:
@@ -213,8 +213,18 @@ class DHCPD:
     def listen(self):
         '''Main listen loop'''
         while True:
-            message, address = self.sock.recvfrom(1024)
-            clientmac = struct.unpack('!28x6s', message[:34])
+            if self.running == False:
+                self.logger.info("Closing.")
+                break
+            try:
+                message, address = self.sock.recvfrom(1024)
+            except error, e:
+                continue
+            try:
+                clientmac = struct.unpack('!28x6s', message[:34])
+            except struct.error, e:
+                self.logger.debug("Error parsing client mac")
+                continue
             self.logger.debug('Received message')
             #self.logger.debug('  <--BEGIN MESSAGE-->\n\t{message}\n\t<--END MESSAGE-->'.format(message = repr(message)))
             self.options = self.tlvParse(message[240:])
@@ -232,3 +242,8 @@ class DHCPD:
             elif type == 3 and address[0] != '0.0.0.0':
                 self.logger.debug('Received DHCPACK')
                 self.dhcpAck(message)
+
+    def shutdown(self):
+        self.sock.sendto("", (self.ip, self.port))
+        self.sock.close()
+        self.running = False

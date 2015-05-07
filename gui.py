@@ -29,6 +29,7 @@ import utils
 import proxy
 from pypxe import tftp
 from pypxe import http
+from pypxe import dhcp
 
 class QueueLogger(logging.Handler):
     def __init__(self, queue):
@@ -77,14 +78,14 @@ class MainFrame:
         
         self.gui_debug = tk.BooleanVar()
         self.gui_debug.set(self.options.debug)
-        tk.Label(self.settings_frame, text="Debug:").grid(row=row, column=1, sticky=tk.W)
-        tk.Checkbutton(self.settings_frame, variable=self.gui_debug, command=self.gui_debug_action).grid(row=row, column=2, sticky=tk.W)
-        row = row + 1
+        tk.Label(self.settings_frame, text="Debug:").grid(row=row, column=0, sticky=tk.W)
+        tk.Checkbutton(self.settings_frame, variable=self.gui_debug, command=self.gui_debug_action).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
 
         self.gui_sip_ip_address = tk.StringVar()
         self.gui_sip_ip_address.set(self.options.ip_address)
-        tk.Label(self.settings_frame, text="IP Address:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_sip_ip_address, width=15).grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="IP Address:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_ip_address, width=15).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
        
         tk.Label(self.settings_frame, text="TFTP Server:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
@@ -92,64 +93,119 @@ class MainFrame:
 
         self.gui_tftp_port = tk.IntVar()
         self.gui_tftp_port.set(self.options.tftp_port)
-        tk.Label(self.settings_frame, text="TFTP Port:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_tftp_port, width=5).grid(row=row, column=2, sticky=tk.W)
-        row = row + 1
+        tk.Label(self.settings_frame, text="TFTP Port:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_tftp_port, width=5).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
         
         self.gui_tftp_root = tk.StringVar()
         self.gui_tftp_root.set(self.options.tftp_root)
-        tk.Label(self.settings_frame, text="TFTP Root:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_tftp_root, width=15).grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="TFTP Root:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_tftp_root, width=15).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
 
-        self.tftp_control_button = tk.Button(self.settings_frame, text="Start TFTP Server", command=self.start_tftp_server)
-        self.tftp_control_button.grid(row=row, column=1, sticky=tk.N)
-        row = row + 1
 
         tk.Label(self.settings_frame, text="HTTP Server:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
         row = row + 1
         
         self.gui_http_port = tk.IntVar()
         self.gui_http_port.set(self.options.http_port)
-        tk.Label(self.settings_frame, text="HTTP Port:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_http_port, width=5).grid(row=row, column=2, sticky=tk.W)
-        row = row + 1
+        tk.Label(self.settings_frame, text="HTTP Port:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_http_port, width=5).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
         
         self.gui_http_root = tk.StringVar()
         self.gui_http_root.set(self.options.http_root)
-        tk.Label(self.settings_frame, text="HTTP Root:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_http_root, width=15).grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="HTTP Root:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_http_root, width=15).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
 
-        self.http_control_button = tk.Button(self.settings_frame, text="Start HTTP Server", command=self.start_http_server)
-        self.http_control_button.grid(row=row, column=1, sticky=tk.N)
+        
+        tk.Label(self.settings_frame, text="DHCP Server:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
         row = row + 1
         
+        self.gui_dhcp_begin = tk.StringVar()
+        self.gui_dhcp_begin.set(self.options.dhcp_begin)
+        tk.Label(self.settings_frame, text="DHCP Pool start:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_begin, width=15).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
+        
+        self.gui_dhcp_end = tk.StringVar()
+        self.gui_dhcp_end.set(self.options.dhcp_end)
+        tk.Label(self.settings_frame, text="DHCP Pool end:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_end, width=15).grid(row=row, column=3, sticky=tk.W)
+        row = row + 1
+
+        self.gui_dhcp_subnet = tk.StringVar()
+        self.gui_dhcp_subnet.set(self.options.dhcp_subnet)
+        tk.Label(self.settings_frame, text="DHCP Subnet:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_subnet, width=15).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
+
+        self.gui_dhcp_gateway = tk.StringVar()
+        self.gui_dhcp_gateway.set(self.options.dhcp_gateway)
+        tk.Label(self.settings_frame, text="DHCP Gateway:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_gateway, width=15).grid(row=row, column=3, sticky=tk.W)
+        row = row + 1
+
+        self.gui_dhcp_bcast = tk.StringVar()
+        self.gui_dhcp_bcast.set(self.options.dhcp_bcast)
+        tk.Label(self.settings_frame, text="DHCP Broadcast:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_bcast, width=15).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
+
+        self.gui_dhcp_dns = tk.StringVar()
+        self.gui_dhcp_dns.set(self.options.dhcp_dns)
+        tk.Label(self.settings_frame, text="DHCP DNS:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_dns, width=15).grid(row=row, column=3, sticky=tk.W)
+        row = row + 1
+
+        self.gui_dhcp_fileserver = tk.StringVar()
+        self.gui_dhcp_fileserver.set(self.options.dhcp_fileserver)
+        tk.Label(self.settings_frame, text="DHCP Fileserver (opt. 66):").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_fileserver, width=25).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
+
+        self.gui_dhcp_filename = tk.StringVar()
+        self.gui_dhcp_filename.set(self.options.dhcp_filename)
+        tk.Label(self.settings_frame, text="DHCP Filename (opt. 67):").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_filename, width=25).grid(row=row, column=3, sticky=tk.W)
+        row = row + 1
+
         tk.Label(self.settings_frame, text="SIP Proxy:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
         row = row + 1
         
         self.gui_sip_redirect = tk.BooleanVar()
         self.gui_sip_redirect.set(self.options.sip_redirect)
-        tk.Label(self.settings_frame, text="SIP Redirect server:").grid(row=row, column=1, sticky=tk.W)
-        tk.Checkbutton(self.settings_frame, variable=self.gui_sip_redirect, command=self.gui_sip_redirect_action).grid(row=row, column=2, sticky=tk.W)
-        row = row + 1
+        tk.Label(self.settings_frame, text="SIP Redirect server:").grid(row=row, column=0, sticky=tk.W)
+        tk.Checkbutton(self.settings_frame, variable=self.gui_sip_redirect, command=self.gui_sip_redirect_action).grid(row=row, column=1, sticky=tk.W)
+        #row = row + 1
         
         self.gui_sip_port = tk.IntVar()
         self.gui_sip_port.set(self.options.sip_port)
-        tk.Label(self.settings_frame, text="SIP Port:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_sip_port, width=5).grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="SIP Port:").grid(row=row, column=2, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_port, width=5).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
  
         self.gui_sip_password = tk.StringVar()
         self.gui_sip_password.set(self.options.sip_password)
-        tk.Label(self.settings_frame, text="Password:").grid(row=row, column=1, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_sip_password, width=15).grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="Password:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_sip_password, width=15).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
  
         self.sip_control_button = tk.Button(self.settings_frame, text="Start SIP Proxy", command=self.start_sip_proxy)
-        self.sip_control_button.grid(row=row, column=1, sticky=tk.N)
+        self.sip_control_button.grid(row=row, column=0, sticky=tk.N)
+        
+        self.tftp_control_button = tk.Button(self.settings_frame, text="Start TFTP Server", command=self.start_tftp_server)
+        self.tftp_control_button.grid(row=row, column=1, sticky=tk.N)
+        
+        self.http_control_button = tk.Button(self.settings_frame, text="Start HTTP Server", command=self.start_http_server)
+        self.http_control_button.grid(row=row, column=2, sticky=tk.N)
+        
+        self.dhcp_control_button = tk.Button(self.settings_frame, text="Start DHCP Server", command=self.start_dhcp_server)
+        self.dhcp_control_button.grid(row=row, column=3, sticky=tk.N)
+        
         self.registrar_button = tk.Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
-        self.registrar_button.grid(row=row, column=2, sticky=tk.N)
+        self.registrar_button.grid(row=row, column=4, sticky=tk.N)
         row = row + 1
         
         self.registrar_frame.grid(row=1, column=0, sticky=tk.NS)
@@ -253,6 +309,41 @@ class MainFrame:
         self.tftp_server = None
         self.main_logger.debug("TFTP: Stopped thread")
         self.tftp_control_button.configure(text="Start TFTP Server", command=self.start_tftp_server)
+
+    def start_dhcp_server(self):
+        self.main_logger.debug("DHCP Server: Starting thread")
+        self.options.ip_address = self.gui_sip_ip_address.get()
+        self.options.dhcp_begin = self.gui_dhcp_begin.get()
+        self.options.dhcp_end = self.gui_dhcp_end.get()
+        self.options.dhcp_gateway = self.gui_dhcp_gateway.get()
+        self.options.dhcp_subnet = self.gui_dhcp_subnet.get()
+        self.options.dhcp_bcast = self.gui_dhcp_bcast.get()
+        self.options.dhcp_fileserver = self.gui_dhcp_fileserver.get()
+        self.options.dhcp_filename = self.gui_dhcp_filename.get()
+        try:
+            self.dhcp_server = dhcp.DHCPD(ip = self.options.ip_address, mode_debug = self.options.debug, logger = self.main_logger,
+                        offerfrom = self.options.dhcp_begin,
+                        offerto = self.options.dhcp_end,
+                        subnet = self.options.dhcp_subnet,
+                        router = self.options.dhcp_gateway,
+                        dnsserver = self.options.dhcp_dns,
+                        broadcast = self.options.dhcp_bcast,
+                        fileserver = self.options.dhcp_fileserver,
+                        filename = self.options.dhcp_filename)
+            self.dhcp_server_thread = threading.Thread(name='dhcp', target=self.dhcp_server.listen)
+            self.dhcp_server_thread.daemon = True
+            self.dhcp_server_thread.start()
+            self.dhcp_control_button.configure(text="Stop DHCP Server", command=self.stop_dhcp_server)
+        except Exception, e:
+            self.main_logger.error("Cannot start the server: %s", e)
+            raise e
+
+    def stop_dhcp_server(self):
+        self.main_logger.debug("DHCP: Stopping thread")
+        self.dhcp_server.shutdown()
+        self.dhcp_server = None
+        self.main_logger.debug("DHCP: Stopped thread")        
+        self.dhcp_control_button.configure(text="Start DHCP Server", command=self.start_dhcp_server)
  
     def start_http_server(self):
         self.main_logger.debug("HTTP Server: Starting thread")
