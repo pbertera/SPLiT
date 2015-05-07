@@ -5,9 +5,13 @@ This file contains classes and functions that implement the PyPXE DHCP service
 import socket
 import struct
 import os
+import pickle
 import logging
 from collections import defaultdict
 from time import time
+
+def default_lease():
+    return {'ip': '', 'expire': 0}
 
 class DHCPD:
     '''
@@ -28,7 +32,8 @@ class DHCPD:
         self.broadcast = serverSettings.get('broadcast', '<broadcast>')
         self.fileserver = serverSettings.get('fileserver', '192.168.2.2')
         self.filename = serverSettings.get('filename', '')
-        
+        self.leases_file = serverSettings.get('leases_file', 'dhcp_leases.dat')
+
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.magic = struct.pack('!I', 0x63825363) #magic cookie
         self.logger = serverSettings.get('logger', None)
@@ -56,15 +61,24 @@ class DHCPD:
         self.logger.debug('  DHCP Broadcast Address: {}'.format(self.broadcast))
         self.logger.debug('  DHCP File Server IP: {}'.format(self.fileserver))
         self.logger.debug('  DHCP File Name: {}'.format(self.filename))
+        self.logger.debug('  DHCP Leases file: {}'. format(self.leases_file))
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.sock.bind(('', self.port ))
         
-        #key is mac
-        self.leases = defaultdict(lambda: {'ip': '', 'expire': 0})
-
+        if os.path.isfile(self.leases_file):
+            try:
+                self.leases = pickle.load(open(self.leases_file, 'r'))
+            except Exception, e:
+                self.logger.error("Cannot load the leases file: %s" % self.leases_file)
+                self.leases = defaultdict(default_lease)
+        else:
+            #key is mac
+            #self.leases = defaultdict(lambda: {'ip': '', 'expire': 0})
+            self.leases = defaultdict(default_lease)
+            
     def nextIP(self):
         '''
             This method returns the next unleased IP from range;
@@ -143,6 +157,7 @@ class DHCPD:
             offer = self.nextIP()
             self.leases[clientmac]['ip'] = offer
             self.leases[clientmac]['expire'] = time() + 86400
+            pickle.dump(self.leases, open(self.leases_file, "wb"))
             self.logger.debug('New DHCP Assignment - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
         response += socket.inet_aton(offer) #yiaddr
         response += socket.inet_aton(self.ip) #siaddr
@@ -166,10 +181,12 @@ class DHCPD:
         response += self.tlvEncode(54, socket.inet_aton(self.ip)) #DHCP Server
         response += self.tlvEncode(1, socket.inet_aton(self.subnetmask)) #SubnetMask
         response += self.tlvEncode(3, socket.inet_aton(self.router)) #Router
+        response += self.tlvEncode(6, socket.inet_aton(self.dnsserver)) #DNS
         response += self.tlvEncode(51, struct.pack('!I', 86400)) #lease time
-        
-        #TFTP Server OR HTTP Server; if iPXE, need both
-        response += self.tlvEncode(66, self.fileserver)
+       
+        if self.fileserver != '':
+            #TFTP Server OR HTTP Server; if iPXE, need both
+            response += self.tlvEncode(66, self.fileserver)
         
         #filename null terminated
         if self.filename != '':

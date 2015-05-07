@@ -68,9 +68,10 @@ class MainFrame:
         # Settings control frame
         self.settings_frame = tk.LabelFrame(self.frame, text="Settings", padx=5, pady=5)
         self.settings_frame.grid(row=0, column=0, sticky=tk.N, padx=5, pady=5)
+        
         # Registrar frame 
-        self.registrar_frame = tk.Frame(self.frame)
-        self.registrar_frame.rowconfigure(0, weight=1)
+        #self.registrar_frame = tk.Frame(self.frame)
+        #self.registrar_frame.rowconfigure(0, weight=1)
 
         row = 0
         tk.Label(self.settings_frame, text="General settings:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
@@ -204,15 +205,15 @@ class MainFrame:
         self.dhcp_control_button = tk.Button(self.settings_frame, text="Start DHCP Server", command=self.start_dhcp_server)
         self.dhcp_control_button.grid(row=row, column=3, sticky=tk.N)
         
-        self.registrar_button = tk.Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
-        self.registrar_button.grid(row=row, column=4, sticky=tk.N)
-        row = row + 1
+        #self.registrar_button = tk.Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
+        #self.registrar_button.grid(row=row, column=4, sticky=tk.N)
+        #row = row + 1
         
-        self.registrar_frame.grid(row=1, column=0, sticky=tk.NS)
+        #self.registrar_frame.grid(row=1, column=0, sticky=tk.NS)
         
-        self.registrar_text = ScrolledText(self.registrar_frame)
-        self.registrar_text.grid(row=0, column=0, sticky=tk.NS)
-        self.registrar_text.config(state='disabled') 
+        #self.registrar_text = ScrolledText(self.registrar_frame)
+        #self.registrar_text.grid(row=0, column=0, sticky=tk.NS)
+        #self.registrar_text.config(state='disabled') 
     
         self.sip_queue = Queue.Queue()
         self.sip_trace_logger = utils.setup_logger('sip_widget_logger', log_file=None, debug=True, str_format='%(asctime)s %(message)s', handler=SipTraceQueueLogger(queue=self.sip_queue))
