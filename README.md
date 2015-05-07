@@ -1,31 +1,35 @@
-# ssspyxy Simple Stupid SIP Python Proxy
+# SPLiT SIP Phone Learning Tool
 
-ssspyxy is a **very simple**, **not performat**, **not really well coded**, **full of bugs**, **insecure** and **non fully RFC compliant** SIP proxy.
+### (The 'i' is for fonetic cleaness only)
 
-There is a lot of very good SIP proxy outside here, don't try to use ssspyxy in a production/working environment.
+SPLiT is a **very simple**, **not performat**, **not really well coded**, **insecure** and **non fully RFC compliant** SIP proxy, DHCP, TFTP and HTTP server.
 
-ssspyxy is developed with hackability in mind, the main aim is to reproduce SIP issues, or training / learning purpose.
+There is a lot of very good SIP proxy outside here, don't try to use SPLiT in a production/working environment.
+
+SPLiT is developed with hackability in mind, the main aim is to reproduce SIP issues, or training / learning purpose.
 
 ## Main features
 
-- Registrar with challenge authentication
-- Proxy or Redirect server mode
-- Proxy of SIP messages between UA
-- UDP only suppport
+- SIP Registrar with challenge authentication
+- SIP Proxy or Redirect server mode
+- SIP UDP only suppport
+- Embedded DHCP server with 66 and 67 options support
+- Embedded HTTP server
+- Embedded TFTP server
 - Self contained and portable: tested on OS-X, Linux, Windows
 - TKinter GUI interface
 
 ## Installation
 
 - You need the **Python 2.7** (Python 3 isn't supported yet) interpreter already installed, you can find on the Python [website](http://www.python.org)
-- Download the last release archive file from [https://github.com/pbertera/ssspyxy/releases](https://github.com/pbertera/ssspyxy/releases) and save in your computer
+- Download the last release archive file from [https://github.com/pbertera/SPLiT/releases](https://github.com/pbertera/SPLiT/releases) and save in your computer
 - Run the script from a terminal (or a cmd.exe prompt in Windows)
 
 ## Usage
 
-In order to run ssspyxy you need Python installed, (tested on 2.7.8 only at the moment), you can start the server from command line:
+In order to run SPLiT you need Python installed, (tested on 2.7.8 only at the moment), you can start the server from command line:
 
-    pietro$ python ssspyxy.py -d -i 172.16.18.14 -P protected
+    pietro$ python SPLiT.py -d -i 172.16.18.14 -P protected
     2015-03-06 15:38:00,155 INFO Starting proxy at Fri, 06 Mar 2015 15:38:00 
     2015-03-06 15:38:00,155 DEBUG Using the Record-Route header: Record-Route: <sip:172.16.18.14:5060;lr>
     2015-03-06 15:38:00,155 DEBUG Using the top Via header: Via: SIP/2.0/UDP 172.16.18.14:5060
@@ -36,7 +40,7 @@ In order to run ssspyxy you need Python installed, (tested on 2.7.8 only at the 
 
 On windows (in a cmd.exe prompt):
 
-    c:\Python27\Python.exe  ssspyxy.py -d -i 172.16.18.14 -P protected
+    c:\Python27\Python.exe  SPLiT.py -d -i 172.16.18.14 -P protected
     2015-03-06 15:38:00,155 INFO Starting proxy at Fri, 06 Mar 2015 15:38:00 
     2015-03-06 15:38:00,155 DEBUG Using the Record-Route header: Record-Route: <sip:172.16.18.14:5060;lr>
     2015-03-06 15:38:00,155 DEBUG Using the top Via header: Via: SIP/2.0/UDP 172.16.18.14:5060
@@ -47,20 +51,49 @@ On windows (in a cmd.exe prompt):
     
 ### Command line options
 
-    pietro$ python ssspyxy.py -h
-    Usage: ssspyxy.py [OPTIONS]
-    
+    pietro$ python SPLiT.py -h
+    Usage: SPLiT.py [OPTIONS]
+
     Options:
-        -h, --help      show this help message and exit
-        -t              Run in terminal mode (no GUI)
-        -d              Run in debug mode
-        -r              Act as a redirect server
-        -i IP_ADDRESS   Specify ip address to bind on (default: 127.0.0.1)
-        -p PORT         Specify the UDP port (default: 5060)
-        -s SIP_LOGFILE  Specify the SIP messages log file (default: log to stdout)
-        -l LOGFILE      Specify the log file (default: log to stdout)
-        -e EXPIRES      Default registration expires (default: 3600)
-        -P PASSWORD     Athentication password (default: protected)
+      -h, --help            show this help message and exit
+      -t                    Run in terminal mode (no GUI)
+      -d                    Run in debug mode
+      -i IP_ADDRESS         Specify ip address to bind on (default: 127.0.0.1)
+      -l LOGFILE            Specify the log file (default: log to stdout)
+      --sip-redirect        Act as a redirect server
+      --sip-port=SIP_PORT   Specify the UDP port (default: 5060)
+      --sip-log=SIP_LOGFILE
+                            Specify the SIP messages log file (default: log to
+                            stdout)
+      --sip-expires=SIP_EXPIRES
+                            Default registration expires (default: 3600)
+      --sip-password=SIP_PASSWORD
+                            Athentication password (default: protected)
+      --tftp                Enable the TFTP server
+      --tftp-root=TFTP_ROOT
+                            TFTP server root directory (default: tftp)
+      --tftp-port=TFTP_PORT
+                            TFTP server port (default: 69)
+      --http                Enable the HTTP server
+      --http-root=HTTP_ROOT
+                            HTTP server root directory (default: http)
+      --http-port=HTTP_PORT
+                            HTTP server port (default: 80)
+      --dhcp                Enable the DHCP server
+      --dhcp-begin=DHCP_BEGIN
+                            DHCP lease range start
+      --dhcp-end=DHCP_END   DHCP lease range end
+      --dhcp-subnet=DHCP_SUBNET
+                            DHCP lease subnet
+      --dhcp-gateway=DHCP_GATEWAY
+                            DHCP lease gateway
+      --dhcp-dns=DHCP_DNS   DHCP lease DNS
+      --dhcp-bcast=DHCP_BCAST
+                            DHCP lease broadcast
+      --dhcp-fileserver=DHCP_FILESERVER
+                            DHCP lease fileserver IP (option 66)
+      --dhcp-filename=DHCP_FILENAME
+                            DHCP lease filename (option 67)
 
 # Screenshots
 
@@ -76,16 +109,14 @@ On windows (in a cmd.exe prompt):
 
 ![Log messages](docs/logs.png)
 
+# Known issues
+
+This tool is designed for training and debuggin purpose only, HTTP and TFTP server doesn't check requests against "path walking" attacks, in order to open a DHCP or TFTP socket the tool must run with admin priviledges.
+**Please use it only in trusted environments**
+
 # TODO
 
-- add tests
 - distribution packaging
-- move SIP authorization to a decorator
 - embed a syslog server
-- embed a DHCP and TFTP server from https://github.com/psychomario/PyPXE
 - ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
 - Python 3 support
-
-# Acknowledgment
-
-This work is based on the https://github.com/tirfil/PySipProxy from Philippe THIRION.
