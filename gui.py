@@ -258,6 +258,7 @@ class MainFrame:
         self.main_logger.debug("HTTP Server: Starting thread")
         self.options.ip_address = self.gui_sip_ip_address.get()
         self.options.http_port = self.gui_http_port.get()
+        self.options.http_root = self.gui_http_root.get()
         
         self.main_logger.debug("HTTP Server port: %s", self.options.http_port)
         try:

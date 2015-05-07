@@ -68,6 +68,26 @@ if __name__ == "__main__":
     opt.add_option('--http-port', dest='http_port', default=80, action='store',
             help='HTTP server port (default: 80)')
 
+    opt.add_option('--dhcp', dest='dhcp', default=False, action='store_true',
+            help='Enable the DHCP server')
+    opt.add_option('--dhcp-begin', dest='dhcp_begin', default=None, action='store',
+            help='DHCP lease range start')
+    opt.add_option('--dhcp-end', dest='dhcp_end', default=None, action='store',
+            help='DHCP lease range end')
+    opt.add_option('--dhcp-subnet', dest='dhcp_subnet', default=None, action='store',
+            help='DHCP lease subnet')
+    opt.add_option('--dhcp-gateway', dest='dhcp_gateway', default=None, action='store',
+            help='DHCP lease gateway')
+    opt.add_option('--dhcp-dns', dest='dhcp_dns', default=None, action='store',
+            help='DHCP lease DNS')
+    opt.add_option('--dhcp-bcast', dest='dhcp_bcast', default=None, action='store',
+            help='DHCP lease broadcast')
+    opt.add_option('--dhcp-fileserver', dest='dhcp_fileserver', default=None, action='store',
+            help='DHCP lease fileserver IP (option 66)')
+    opt.add_option('--dhcp-filename', dest='dhcp_filename', default='', action='store',
+            help='DHCP lease filename (option 67)')
+
+
     options, args = opt.parse_args(sys.argv[1:])
 
     main_logger = utils.setup_logger('main_logger', options.logfile, options.debug)
@@ -124,6 +144,22 @@ if __name__ == "__main__":
                 http_server_thread.daemon = True
                 http_server_thread.start()
                 running_services.append(http_server_thread)
+            
+            if options.dhcp:
+                main_logger.info("DHCP: Starting server thread")
+                dhcp_server = dhcp.DHCPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger,
+                        offerfrom = options.dhcp_begin,
+                        offerto = options.dhcp_end,
+                        subnet = options.dhcp_subnet,
+                        router = options.dhcp_gateway,
+                        dnsserver = options.dhcp_dns,
+                        broadcast = options.dhcp_bcast,
+                        fileserver = options.dhcp_fileserver,
+                        filename = options.dhcp_filename)
+                dhcp_server_thread = threading.Thread(name='dhcp', target=dhcp_server.listen)
+                dhcp_server_thread.daemon = True
+                dhcp_server_thread.start()
+                running_services.append(dhcp_server_thread)
 
         except KeyboardInterrupt:
             main_logger.info("Exiting.")

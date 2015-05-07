@@ -111,7 +111,8 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
-    
+
+
     def debugRegister(self):
         self.server.main_logger.debug("SIP: *** REGISTRAR ***")
         self.server.main_logger.debug("SIP: *****************")
