@@ -1,2 +1,3 @@
+dhcp_leases.dat
 *.pyc
 tests/report_*
