@@ -174,25 +174,27 @@ class TFTPD:
                     rlist, wlist, xlist = select.select([self.sock] + [self.ongoing[i]['sock'] for i in self.ongoing if self.ongoing[i]['sock']], [], [], self.timeout)
                 except Exception, e:
                     break
-            for sock in rlist:
-                message, address = sock.recvfrom(1024)
-                opcode = struct.unpack('!H', message[:2])[0]
-                message = message[2:]
-                if opcode == 1: # read the request
-                    self.logger.debug('TFTP receiving request')
-                    self.read(address, message)
-                if opcode == 4: # ack
-                    if self.ongoing.has_key(address):
-                        blockack = struct.unpack("!H", message[:2])[0]
-                        if blockack < self.ongoing[address]['block']:
-                            self.logger.warning('Ignoring duplicated ACK received for block {blockack}'.format(blockack = blockack))
-                            continue
-                        if blockack > self.ongoing[address]['block']:
-                            self.logger.warning('Ignoring out of sequence ACK received for block {blockack}'.format(blockack = blockack))
-                            continue
-                        self.ongoing[address]['block'] = blockack + 1
-                        self.ongoing[address]['retries'] = self.default_retries
-                        self.sendBlock(address)
+            # maybe self.shutdown() can be called in the meantime
+            if self.running:
+                for sock in rlist:
+                    message, address = sock.recvfrom(1024)
+                    opcode = struct.unpack('!H', message[:2])[0]
+                    message = message[2:]
+                    if opcode == 1: # read the request
+                        self.logger.debug('TFTP receiving request')
+                        self.read(address, message)
+                    if opcode == 4: # ack
+                        if self.ongoing.has_key(address):
+                            blockack = struct.unpack("!H", message[:2])[0]
+                            if blockack < self.ongoing[address]['block']:
+                                self.logger.warning('Ignoring duplicated ACK received for block {blockack}'.format(blockack = blockack))
+                                continue
+                            if blockack > self.ongoing[address]['block']:
+                                self.logger.warning('Ignoring out of sequence ACK received for block {blockack}'.format(blockack = blockack))
+                                continue
+                            self.ongoing[address]['block'] = blockack + 1
+                            self.ongoing[address]['retries'] = self.default_retries
+                            self.sendBlock(address)
 
             # Timeouts and Retries. Done after the above so timeout actually has a value
             # Resent those that have timed out
