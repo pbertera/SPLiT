@@ -111,7 +111,8 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
-    
+
+
     def debugRegister(self):
         self.server.main_logger.debug("SIP: *** REGISTRAR ***")
         self.server.main_logger.debug("SIP: *****************")
@@ -359,7 +360,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 
         if len(authorization)> 0 and self.server.auth.has_key(fromm):
             nonce = self.server.auth[fromm]
-            if not self.checkAuthorization(authorization,self.server.options.password,nonce):
+            if not self.checkAuthorization(authorization, self.server.options.sip_password, nonce):
                 self.sendResponse("403 Forbidden")
                 return
         else:
@@ -381,7 +382,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendResponse("200 0K")
                 return
         elif expires == None:
-            expires = self.server.options.expires
+            expires = self.server.options.sip_expires
             header = "Expires: %s" % expires
             self.data.insert(6, header)
         
@@ -399,7 +400,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     
     def is_redirect(function):
         def _is_redirect(self, *args, **kwargs):
-            if self.server.options.redirect:
+            if self.server.options.sip_redirect:
                 self.server.main_logger.debug("SIP: Acting as a redirect server")
                 
                 md = rx_request_uri.search(self.data[0])
