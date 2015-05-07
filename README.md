@@ -2,7 +2,7 @@
 
 ### (The 'i' is for fonetic cleaness only)
 
-SPLiT is a **very simple**, **not performat**, **not really well coded**, **insecure** and **non fully RFC compliant** SIP proxy, DHCP, TFTP and HTTP server.
+SPLiT is a **very simple**, **not performat**, **insecure**, and **non fully RFC compliant** SIP proxy, DHCP, TFTP and HTTP server.
 
 There is a lot of very good SIP proxy outside here, don't try to use SPLiT in a production/working environment.
 
@@ -109,14 +109,15 @@ On windows (in a cmd.exe prompt):
 
 ![Log messages](docs/logs.png)
 
-# Known issues
+## Known issues
 
 This tool is designed for training and debuggin purpose only, HTTP and TFTP server doesn't check requests against "path walking" attacks, in order to open a DHCP or TFTP socket the tool must run with admin priviledges.
 **Please use it only in trusted environments**
 
-# TODO
+## TODO
 
 - distribution packaging
 - embed a syslog server
 - ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
 - Python 3 support
+- PnP server
