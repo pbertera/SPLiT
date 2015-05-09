@@ -103,7 +103,7 @@ class TFTPD:
         response += struct.pack('!H', descriptor['block'] % 2 ** 16)
         data = descriptor['handle'].read(descriptor['blksize'])
         response += data
-        self.logger.debug('TFTP Sending block {block} to client {ip}:{port}'.format(block = repr(descriptor['block']), ip = address[0], port = address[1]))
+        #self.logger.debug('TFTP Sending block {block} to client {ip}:{port}'.format(block = repr(descriptor['block']), ip = address[0], port = address[1]))
         descriptor['sock'].sendto(response, address)
         self.ongoing[address]['retries'] -= 1
         self.ongoing[address]['sent_time'] = time.time()

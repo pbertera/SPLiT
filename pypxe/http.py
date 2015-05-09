@@ -51,8 +51,8 @@ class HTTPD:
     def handleRequest(self, connection, addr):
         '''This method handles HTTP request'''
         request = connection.recv(1024)
-        self.logger.debug('HTTP Recieved message from {addr}'.format(addr = repr(addr)))
-        self.logger.debug('  <--BEGIN MESSAGE-->\n\t{request}\n\t<--END MESSAGE-->'.format(request = repr(request)))
+        #self.logger.debug('HTTP Recieved message from {addr}'.format(addr = repr(addr)))
+        #self.logger.debug('  <--BEGIN MESSAGE-->\n\t{request}\n\t<--END MESSAGE-->'.format(request = repr(request)))
         startline = request.split('\r\n')[0].split(' ')
         method = startline[0]
         req_file = startline[1]
@@ -65,27 +65,34 @@ class HTTPD:
             status = '200 OK'
         response = 'HTTP/1.1 %s\r\n' % status
         if status[:3] in ('404', '501'): #fail out
+            response += '\r\n'
+            response += '<html><head><title>{title}</title></head>'.format(title = status)
+            response += '<body><h1>{status}</h1></body>'.format(status = status)
             connection.send(response)
             connection.close()
-            self.logger.debug('HTTP Sending message to {addr}'.format(addr = repr(addr)))
-            self.logger.debug('  <--BEING MESSAGE-->\n\t{response}\n\t<--END MESSAGE-->'.format(response = repr(response)))
+            #self.logger.debug('HTTP Sending message to {addr}'.format(addr = repr(addr)))
+            #self.logger.debug('  <--BEING MESSAGE-->\n\t{response}\n\t<--END MESSAGE-->'.format(response = repr(response)))
+            self.logger.info("{addr} - {req} - {status}".format(addr = repr(addr), req = startline, status = status))
             return
         response += 'Content-Length: %d\r\n' % os.path.getsize(target)
         response += '\r\n'
         if method == 'HEAD':
             connection.send(response)
             connection.close()
-            self.logger.debug('HTTP Sending message to {addr}'.format(addr = repr(addr)))
-            self.logger.debug('  <--BEING MESSAGE-->\n\t{response}\n\t<--END MESSAGE-->'.format(response = repr(response)))
+            #self.logger.debug('HTTP Sending message to {addr}'.format(addr = repr(addr)))
+            #self.logger.debug('  <--BEING MESSAGE-->\n\t{response}\n\t<--END MESSAGE-->'.format(response = repr(response)))
+            self.logger.info("{addr} - {req} - {status}".format(addr = repr(addr), req = startline, status = status))
             return
+        headers = response
         handle = open(target)
         response += handle.read()
         handle.close()
         connection.send(response)
         connection.close()
-        self.logger.debug('HTTP Sending message to {addr}'.format(addr = repr(addr)))
-        self.logger.debug('  <--BEING MESSAGE-->\n\t{response}\n\t<--END MESSAGE-->'.format(response = repr(response)))
-        self.logger.debug('  HTTP File Sent - http://{req_file} -> {addr[0]}:{addr[1]}'.format(req_file = req_file, addr = addr))
+        #self.logger.debug('HTTP Sending message to {addr}'.format(addr = repr(addr)))
+        #self.logger.debug('  <--BEING MESSAGE-->\n\t{headers}\n\t<--END MESSAGE-->'.format(headers = repr(headers)))
+        #self.logger.debug('  HTTP File Sent - http://{req_file} -> {addr[0]}:{addr[1]}'.format(req_file = req_file, addr = addr))
+        self.logger.info("{addr} - {req} - {status}".format(addr = repr(addr), req = startline, status = status))
 
     def listen(self):
         '''This method is the main loop that listens for requests'''

@@ -1,8 +1,5 @@
 #    Copyright 2015 Pietro Bertera <pietro@bertera.it>
 #
-#    This work is based on the https://github.com/tirfil/PySipProxy
-#    from Philippe THIRION.
-#
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
