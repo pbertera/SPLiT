@@ -295,7 +295,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         data.append("")
         text = string.join(data,"\r\n")
         self.sendTo(text, self.client_address)
-        self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
+        self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (self.client_address[0], self.client_address[1], len(text),text))
     
     def sendTo(self, data, client_address, socket=None):
         self.server.main_logger.debug("SIP: Sending to %s:%d" % (client_address))
@@ -477,7 +477,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 text = string.join(data,"\r\n")
                 self.sendTo(text , claddr, socket)
                 self.server.main_logger.debug("SIP: Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
-                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
                 self.sendResponse("480 Temporarily Unavailable")
         else:
@@ -496,7 +496,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
-                self.server.sip_logger.debug("SIP: Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("SIP: Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
     @is_redirect
     def processNonInvite(self):
@@ -518,7 +518,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
-                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
                 self.sendResponse("404 Not found")
         else:
@@ -537,7 +537,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 data = self.removeTopVia()
                 text = string.join(data,"\r\n")
                 self.sendTo(text,claddr, socket)
-                self.server.sip_logger.debug("Send to: %s:%d ([%d] bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
+                self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
                 
     def processRequest(self):
