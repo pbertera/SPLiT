@@ -315,6 +315,7 @@ class MainFrame:
         self.options.dhcp_begin = self.gui_dhcp_begin.get()
         self.options.dhcp_end = self.gui_dhcp_end.get()
         self.options.dhcp_gateway = self.gui_dhcp_gateway.get()
+        self.options.dhcp_dns = self.gui_dhcp_dns.get()
         self.options.dhcp_subnet = self.gui_dhcp_subnet.get()
         self.options.dhcp_bcast = self.gui_dhcp_bcast.get()
         self.options.dhcp_fileserver = self.gui_dhcp_fileserver.get()
