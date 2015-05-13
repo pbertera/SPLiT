@@ -29,12 +29,12 @@ from pypxe import tftp #PyPXE TFTP service
 from pypxe import dhcp #PyPXE DHCP service
 from pypxe import http #PyPXE HTTP service
 
-DHCP_DEFAULT_BEGIN='172.16.18.99'
-DHCP_DEFAULT_END='172.16.18.120'
-DHCP_DEFAULT_SUBNET='172.16.18.0'
-DHCP_DEFAULT_GW='172.16.18.1'
-DHCP_DEFAULT_BCAST='172.16.18.255'
-DHCP_DEFAULT_DNS='172.16.18.1'
+DHCP_DEFAULT_BEGIN=''
+DHCP_DEFAULT_END=''
+DHCP_DEFAULT_SUBNET=''
+DHCP_DEFAULT_GW=''
+DHCP_DEFAULT_BCAST=''
+DHCP_DEFAULT_DNS=''
 
 if __name__ == "__main__": 
     usage = """%prog [OPTIONS]"""

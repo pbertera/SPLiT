@@ -22,17 +22,32 @@ class DHCPD:
     '''
     def __init__(self, **serverSettings):
         
-        self.ip = serverSettings.get('ip', '192.168.2.2')
+        self.ip = serverSettings.get('ip', '')
         self.port = serverSettings.get('port', 67)
-        self.offerfrom = serverSettings.get('offerfrom', '192.168.2.100')
-        self.offerto = serverSettings.get('offerto', '192.168.2.150')
-        self.subnetmask = serverSettings.get('subnetmask', '255.255.255.0')
-        self.router = serverSettings.get('router', '192.168.2.1')
-        self.dnsserver = serverSettings.get('dnsserver', '8.8.8.8')
+        self.offerfrom = serverSettings.get('offerfrom', '')
+        self.offerto = serverSettings.get('offerto', '')
+        self.subnetmask = serverSettings.get('subnetmask', '')
+        self.router = serverSettings.get('router', '')
+        self.dnsserver = serverSettings.get('dnsserver', '')
         self.broadcast = serverSettings.get('broadcast', '<broadcast>')
-        self.fileserver = serverSettings.get('fileserver', '192.168.2.2')
+        self.fileserver = serverSettings.get('fileserver', '')
         self.filename = serverSettings.get('filename', '')
         self.leases_file = serverSettings.get('leases_file', 'dhcp_leases.dat')
+        
+        if self.ip == '':
+            raise Exception('DHCP IP server')
+        if self.port == '':
+            raise Exception('DHCP port')
+        if self.offerfrom == '':
+            raise Exception('DHCP pool start undefined')
+        if self.offerto == '':
+            raise Exception('DHCP pool end undefined')
+        if self.router == '':
+            raise Exception('DHCP router undefined')
+        if self.dnsserver == '':
+            raise Exception('DHCP DNS server undefined')
+        if self.broadcast == '':
+            raise Exception('DHCP broadcast undefined')
 
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.magic = struct.pack('!I', 0x63825363) #magic cookie
