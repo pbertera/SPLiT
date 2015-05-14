@@ -99,6 +99,7 @@ def generateNonce(n, str="0123456789abcdef"):
     
 class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
     def __init__(self, server_address, RequestHandlerClass, sip_logger, main_logger, options):
+        self.allow_reuse_address = True
         SocketServer.UDPServer.__init__(self, server_address, RequestHandlerClass)
         self.sip_logger = sip_logger
         self.main_logger = main_logger
@@ -109,9 +110,9 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.auth = {}
         self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (server_address[0], server_address[1])
         self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
+        self.main_logger.info("NOTICE: SIP Proxy starting on %s:%d" % (server_address[0], server_address[1]))
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
-
 
     def debugRegister(self):
         self.server.main_logger.debug("SIP: *** REGISTRAR ***")
@@ -193,7 +194,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     
     def removeContentDisposition(self):
         return self.removeHeader(rx_contentdisposition)
-
 
     def addTopVia(self):
         branch= ""
@@ -539,7 +539,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendTo(text,claddr, socket)
                 self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
-                
     def processRequest(self):
         #print "processRequest"
         if len(self.data) > 0:
@@ -594,5 +593,3 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.server.sip_logger.debug("Received from %s:%d (%d bytes):\n\n" %  (self.client_address[0], self.client_address[1], len(data)))
                 mess = hexdump(data,' ',16)
                 self.server.sip_logger.debug('SIP Hex data:\n' + '\n'.join(mess))
-
-

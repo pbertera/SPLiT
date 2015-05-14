@@ -30,6 +30,8 @@ class TFTPD:
         self.sock.bind((self.ip, self.port))
         self.running = True
 
+        self.logger.info("NOTICE: TFTP server starting on %s:%d" % (self.ip, self.port))
+
         # setup logger
         if self.logger == None:
             self.logger = logging.getLogger("TFTP")
@@ -168,6 +170,7 @@ class TFTPD:
 
     def listen(self):
         '''This method listens for incoming requests'''
+        self.logger.info("TFTP service running")
         while True:
             if self.running:
                 try:

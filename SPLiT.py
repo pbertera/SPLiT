@@ -24,6 +24,7 @@ import time
 import gui
 import utils
 import proxy
+import pnp
 
 from pypxe import tftp #PyPXE TFTP service
 from pypxe import dhcp #PyPXE DHCP service
@@ -59,8 +60,13 @@ if __name__ == "__main__":
     opt.add_option('--sip-expires', dest='sip_expires', type='int', default=3600,
             help='Default registration expires (default: 3600)')
     opt.add_option('--sip-password', dest='sip_password', type='string', default='protected',
-            help='Athentication password (default: protected)')
+            help='Authentication password (default: protected)')
     
+    opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
+            help='Enable the PnP server')
+    opt.add_option('--pnp-uri', dest='pnp_uri', default='http://provisioning.snom.com/{model}/{model}.php?mac={mac}', action='store',
+            help='Configure the PnP URL')
+
     opt.add_option('--tftp', dest='tftp', default=False, action='store_true',
             help='Enable the TFTP server')
     opt.add_option('--tftp-root', dest='tftp_root', type='string', default='tftp', action='store',
@@ -135,6 +141,14 @@ if __name__ == "__main__":
             sip_proxy_thread.start()
             running_services.append(sip_proxy_thread)
             
+            if options.pnp:
+                main_logger.info("PnP: Starting server thread")
+                pnp_server = pnp.SipTracedMcastUDPServer(('224.0.1.75', 5060), pnp.UDPHandler, sip_logger, main_logger, options)
+                pnp_server_thread = threading.Thread(name='pnp', target=pnp_server.serve_forever)
+                pnp_server_thread.daemon = True
+                pnp_server_thread.start()
+                running_services.append(pnp_server_thread)
+
             if options.tftp:
                 main_logger.info("TFTP: Starting server thread")
                 tftp_server = tftp.TFTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, netbootDirectory = options.tftp_root)

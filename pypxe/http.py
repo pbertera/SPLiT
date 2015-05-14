@@ -22,6 +22,9 @@ class HTTPD:
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.logger =  serverSettings.get('logger', None)
         self.running = True
+        
+        self.logger.info("NOTICE: HTTP server starting on %s:%d" % (self.ip, self.port))
+
         # setup logger
         if self.logger == None:
             self.logger = logging.getLogger("HTTP")
@@ -96,6 +99,7 @@ class HTTPD:
 
     def listen(self):
         '''This method is the main loop that listens for requests'''
+        self.logger.info('HTTP service running')
         while True:
             if self.running:
                 conn, addr = self.sock.accept()
