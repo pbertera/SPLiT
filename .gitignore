@@ -1,3 +1,9 @@
 dhcp_leases.dat
 *.pyc
+build/*
+dist/*
+http/*
+tftp/*
+SPLiT*.spec
+\.DS_Store
 tests/report_*
