@@ -69,18 +69,26 @@ class pnp_phone(object):
 
 class SipTracedMcastUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
     def __init__(self, server_address, RequestHandlerClass, sip_logger, main_logger, options):
-        #SocketServer.UDPServer.__init__(self, server_address, RequestHandlerClass)
-        SocketServer.UDPServer.__init__(self,server_address, RequestHandlerClass, True)
+        # bind to the port only:
+        SocketServer.UDPServer.__init__(self,(server_address[0], server_address[1]), RequestHandlerClass, bind_and_activate=False)
         self.sip_logger = sip_logger
         self.main_logger = main_logger
         self.options = options
        
-        self.allow_reuse_address = True
         self.main_logger.info("NOTICE: PnP Server starting on %s:%d and %s:%d." % (server_address[0], server_address[1], self.options.ip_address, self.options.sip_port))
         
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
         # make the socket multicast
-        mreq = struct.pack("4sI", socket.inet_aton(server_address[0]), socket.INADDR_ANY)
-        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        # server_address[0] is the mulicast address
+        group = socket.inet_aton(server_address[0])
+        # bind on the right interface
+        iface = socket.inet_aton(options.ip_address)
+
+        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, group+iface)
+        self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        self.socket.bind(server_address)
+        self.server_address = self.socket.getsockname()
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
 
