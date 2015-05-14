@@ -219,7 +219,10 @@ class DHCPD:
         self.logger.debug('  <--BEGIN HEADER-->\n\t{headerResponse}\n\t<--END HEADER-->'.format(headerResponse = repr(headerResponse)))
         self.logger.debug('  <--BEGIN OPTIONS-->\n\t{optionsResponse}\n\t<--END OPTIONS-->'.format(optionsResponse = repr(optionsResponse)))
         #self.logger.debug('  <--BEGIN RESPONSE-->\n\t{response}\n\t<--END RESPONSE-->'.format(response = repr(response)))
-        self.sock.sendto(response, (self.broadcast, 68))
+        try:
+            self.sock.sendto(response, (self.broadcast, 68))
+        except Exception, e:
+            self.logger.error("DHCP: error sending Offer: %s" % e)
 
     def dhcpAck(self, message):
         '''This method responds to DHCP request with acknowledge'''

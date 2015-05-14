@@ -135,10 +135,10 @@ class MainFrame:
         tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_end, width=15).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
 
-        self.gui_dhcp_subnet = tk.StringVar()
-        self.gui_dhcp_subnet.set(self.options.dhcp_subnet)
-        tk.Label(self.settings_frame, text="DHCP Subnet:").grid(row=row, column=0, sticky=tk.W)
-        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_subnet, width=15).grid(row=row, column=1, sticky=tk.W)
+        self.gui_dhcp_subnetmask = tk.StringVar()
+        self.gui_dhcp_subnetmask.set(self.options.dhcp_subnetmask)
+        tk.Label(self.settings_frame, text="DHCP Subnet mask:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_subnetmask, width=15).grid(row=row, column=1, sticky=tk.W)
         #row = row + 1
 
         self.gui_dhcp_gateway = tk.StringVar()
@@ -329,7 +329,7 @@ class MainFrame:
         self.options.dhcp_end = self.gui_dhcp_end.get()
         self.options.dhcp_gateway = self.gui_dhcp_gateway.get()
         self.options.dhcp_dns = self.gui_dhcp_dns.get()
-        self.options.dhcp_subnet = self.gui_dhcp_subnet.get()
+        self.options.dhcp_subnetmask = self.gui_dhcp_subnetmask.get()
         self.options.dhcp_bcast = self.gui_dhcp_bcast.get()
         self.options.dhcp_fileserver = self.gui_dhcp_fileserver.get()
         self.options.dhcp_filename = self.gui_dhcp_filename.get()
@@ -337,7 +337,7 @@ class MainFrame:
             self.dhcp_server = dhcp.DHCPD(ip = self.options.ip_address, mode_debug = self.options.debug, logger = self.main_logger,
                         offerfrom = self.options.dhcp_begin,
                         offerto = self.options.dhcp_end,
-                        subnet = self.options.dhcp_subnet,
+                        subnetmask = self.options.dhcp_subnetmask,
                         router = self.options.dhcp_gateway,
                         dnsserver = self.options.dhcp_dns,
                         broadcast = self.options.dhcp_bcast,

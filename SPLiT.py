@@ -32,7 +32,7 @@ from pypxe import http #PyPXE HTTP service
 
 DHCP_DEFAULT_BEGIN=''
 DHCP_DEFAULT_END=''
-DHCP_DEFAULT_SUBNET=''
+DHCP_DEFAULT_SUBNETMASK=''
 DHCP_DEFAULT_GW=''
 DHCP_DEFAULT_BCAST=''
 DHCP_DEFAULT_DNS=''
@@ -87,8 +87,8 @@ if __name__ == "__main__":
             help='DHCP lease range start')
     opt.add_option('--dhcp-end', dest='dhcp_end', default=DHCP_DEFAULT_END, action='store',
             help='DHCP lease range end')
-    opt.add_option('--dhcp-subnet', dest='dhcp_subnet', default=DHCP_DEFAULT_SUBNET, action='store',
-            help='DHCP lease subnet')
+    opt.add_option('--dhcp-subnetmask', dest='dhcp_subnetmask', default=DHCP_DEFAULT_SUBNETMASK, action='store',
+            help='DHCP lease subnet mask')
     opt.add_option('--dhcp-gateway', dest='dhcp_gateway', default=DHCP_DEFAULT_GW, action='store',
             help='DHCP lease gateway')
     opt.add_option('--dhcp-dns', dest='dhcp_dns', default=DHCP_DEFAULT_DNS, action='store',
@@ -170,7 +170,7 @@ if __name__ == "__main__":
                 dhcp_server = dhcp.DHCPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger,
                         offerfrom = options.dhcp_begin,
                         offerto = options.dhcp_end,
-                        subnet = options.dhcp_subnet,
+                        subnetmask = options.dhcp_subnetmask,
                         router = options.dhcp_gateway,
                         dnsserver = options.dhcp_dns,
                         broadcast = options.dhcp_bcast,
