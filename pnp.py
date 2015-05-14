@@ -169,7 +169,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             if not self.server.options.pnp_uri:
                 pnp_uri = "http://provisioning.snom.com/%s/%s.php?mac={mac}" % (phone.model, phone.model)
             else:
-                pnp_uri = self.server.options.pnp_uri
+                pnp_uri = self.server.options.pnp_uri.format(model = phone.model, mac = '{mac}')
 
             notify = "NOTIFY sip:%s:%s SIP/2.0\r\n" % (phone.ip_addr, phone.sip_port)
             notify += via_header + "\r\n"

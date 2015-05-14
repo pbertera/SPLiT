@@ -60,7 +60,7 @@ if __name__ == "__main__":
     opt.add_option('--sip-expires', dest='sip_expires', type='int', default=3600,
             help='Default registration expires (default: 3600)')
     opt.add_option('--sip-password', dest='sip_password', type='string', default='protected',
-            help='Athentication password (default: protected)')
+            help='Authentication password (default: protected)')
     
     opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
             help='Enable the PnP server')
