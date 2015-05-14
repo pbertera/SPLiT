@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
             if options.tftp:
                 main_logger.info("TFTP: Starting server thread")
-                tftp_server = tftp.TFTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, netbootDirectory = options.tftp_root)
+                tftp_server = tftp.TFTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, netboot_directory = options.tftp_root)
                 tftp_server_thread = threading.Thread(name='tftp', target=tftp_server.listen)
                 tftp_server_thread.daemon = True
                 tftp_server_thread.start()
