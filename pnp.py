@@ -19,6 +19,7 @@ import re
 import socket
 import sys
 import errno
+import platform
 
 # Regexp matching SIP messages:
 rx_subscribe = re.compile("^SUBSCRIBE")
@@ -83,8 +84,13 @@ class SipTracedMcastUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServe
         # make the socket multicast
         self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, group+iface)
         self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR, 1)
-
-        self.socket.bind(('', server_address[1]))
+       
+        # If Windows bind on any addr.
+        if platform.system().lower() == 'windows':
+            self.main_logger.debug("PnP: running on windows, don't select the IP")
+            self.socket.bind(('', server_address[1]))
+        else:
+            self.socket.bind((server_address[0], server_address[1]))
         self.server_address = self.socket.getsockname()
 
 class UDPHandler(SocketServer.BaseRequestHandler):   

@@ -99,6 +99,7 @@ def generateNonce(n, str="0123456789abcdef"):
     
 class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
     def __init__(self, server_address, RequestHandlerClass, sip_logger, main_logger, options):
+        self.allow_reuse_address = True
         SocketServer.UDPServer.__init__(self, server_address, RequestHandlerClass)
         self.sip_logger = sip_logger
         self.main_logger = main_logger
