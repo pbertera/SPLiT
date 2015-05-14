@@ -86,8 +86,8 @@ On windows (in a cmd.exe prompt):
         --dhcp-begin=DHCP_BEGIN
                               DHCP lease range start
         --dhcp-end=DHCP_END   DHCP lease range end
-        --dhcp-subnet=DHCP_SUBNET
-                              DHCP lease subnet
+        --dhcp-subnetmask=DHCP_SUBNETMASK
+                              DHCP lease subnet mask
         --dhcp-gateway=DHCP_GATEWAY
                               DHCP lease gateway
         --dhcp-dns=DHCP_DNS   DHCP lease DNS
