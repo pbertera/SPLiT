@@ -42,7 +42,10 @@ class Client:
 
     def ready(self):
         '''Called when there is something to be read on our socket.'''
-        self.message = self.sock.recv(1024)
+        try:
+            self.message = self.sock.recv(1024)
+        except Exception, e:
+            self.logger.warning("Error during clienrt recv")
         self.handle()
 
     def send_block(self):
@@ -243,8 +246,8 @@ class TFTPD:
 
         if self.mode_debug:
             self.logger.setLevel(logging.DEBUG)
-
-        self.logger.debug('NOTICE: TFTP server started in debug mode. TFTP server is using the following:')
+        
+        self.logger.info("NOTICE: TFTP server starting on %s:%d" % (self.ip, self.port))
         self.logger.debug('Server IP: {0}'.format(self.ip))
         self.logger.debug('Server Port: {0}'.format(self.port))
         self.logger.debug('Network Boot Directory: {0}'.format(self.netboot_directory))
@@ -259,6 +262,7 @@ class TFTPD:
 
     def listen(self):
         '''This method listens for incoming requests.'''
+        self.logger.info("TFTP service running")
         while True:
             # remove complete clients to select doesn't fail
             map(self.ongoing.remove, [client for client in self.ongoing if client.dead])
