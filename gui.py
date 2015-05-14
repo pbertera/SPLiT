@@ -24,6 +24,8 @@ from ScrolledText import ScrolledText
 
 import utils
 import proxy
+import pnp
+
 from pypxe import tftp
 from pypxe import http
 from pypxe import dhcp
@@ -97,7 +99,7 @@ class MainFrame:
         
         self.gui_tftp_root = tk.StringVar()
         self.gui_tftp_root.set(self.options.tftp_root)
-        tk.Label(self.settings_frame, text="TFTP Root:").grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="TFTP Directory:").grid(row=row, column=2, sticky=tk.W)
         tk.Entry(self.settings_frame, textvariable=self.gui_tftp_root, width=15).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
 
@@ -113,7 +115,7 @@ class MainFrame:
         
         self.gui_http_root = tk.StringVar()
         self.gui_http_root.set(self.options.http_root)
-        tk.Label(self.settings_frame, text="HTTP Root:").grid(row=row, column=2, sticky=tk.W)
+        tk.Label(self.settings_frame, text="HTTP Directory:").grid(row=row, column=2, sticky=tk.W)
         tk.Entry(self.settings_frame, textvariable=self.gui_http_root, width=15).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
 
@@ -169,6 +171,15 @@ class MainFrame:
         tk.Entry(self.settings_frame, textvariable=self.gui_dhcp_filename, width=25).grid(row=row, column=3, sticky=tk.W)
         row = row + 1
 
+        tk.Label(self.settings_frame, text="SIP Plug&Play:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
+        row = row + 1
+        
+        self.gui_pnp_uri = tk.StringVar()
+        self.gui_pnp_uri.set(self.options.pnp_uri)
+        tk.Label(self.settings_frame, text="PnP URI:").grid(row=row, column=0, sticky=tk.W)
+        tk.Entry(self.settings_frame, textvariable=self.gui_pnp_uri, width=60).grid(row=row, column=1, columnspan=3, sticky=tk.W)
+        row = row + 1
+        
         tk.Label(self.settings_frame, text="SIP Proxy:", font = "-weight bold").grid(row=row, column=0, sticky=tk.W)
         row = row + 1
         
@@ -201,6 +212,9 @@ class MainFrame:
         
         self.dhcp_control_button = tk.Button(self.settings_frame, text="Start DHCP Server", command=self.start_dhcp_server)
         self.dhcp_control_button.grid(row=row, column=3, sticky=tk.N)
+        
+        self.pnp_control_button = tk.Button(self.settings_frame, text="Start PnP Server", command=self.start_pnp_server)
+        self.pnp_control_button.grid(row=row, column=4, sticky=tk.N)
         
         #self.registrar_button = tk.Button(self.settings_frame, text="Reload registered", command=self.load_registrar)
         #self.registrar_button.grid(row=row, column=4, sticky=tk.N)
@@ -254,7 +268,6 @@ class MainFrame:
         self.options.ip_address = self.gui_sip_ip_address.get()
         self.options.sip_port = self.gui_sip_port.get()
         self.options.sip_password = self.gui_sip_password.get()
-        self.main_logger.info(time.strftime("Starting proxy at %a, %d %b %Y %H:%M:%S ", time.localtime()))
     
         self.main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
         self.main_logger.debug("Authentication password: %s" % self.options.sip_password)
@@ -368,7 +381,33 @@ class MainFrame:
         self.http_server = None
         self.main_logger.debug("HTTP: Stopped thread")
         self.http_control_button.configure(text="Start HTTP Server", command=self.start_http_server)
+
+    def start_pnp_server(self):
+        self.main_logger.debug("PnP Server: Starting thread")
+    
+        self.options.ip_address = self.gui_sip_ip_address.get()
+        self.options.pnp_uri = self.gui_pnp_uri.get()
+        self.main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
+        self.main_logger.debug("Logfile: %s" % self.options.logfile)
  
+        try:
+            self.pnp_server = pnp.SipTracedMcastUDPServer(('224.0.1.75', 5060), pnp.UDPHandler, self.sip_trace_logger, self.main_logger, self.options)
+            self.pnp_server_thread = threading.Thread(name='pnp', target=self.pnp_server.serve_forever)
+            self.pnp_server_thread.daemon = True
+            self.pnp_server_thread.start()
+            self.pnp_control_button.configure(text="Stop PnP Server", command=self.stop_pnp_server)
+        except Exception, e:
+            self.main_logger.error("Cannot start the server: %s" % e)
+            raise e
+ 
+    def stop_pnp_server(self):
+        self.main_logger.debug("PnP: Stopping thread")
+        self.pnp_server.shutdown()
+        self.pnp_server.socket.close()
+        self.pnp_server = None
+        self.main_logger.debug("PnP: Stopped thread")
+        self.pnp_control_button.configure(text="Start PnP Proxy", command=self.start_pnp_server)
+
     def gui_debug_action(self):
         if self.gui_debug.get():
             self.main_logger.debug("Activating Debug")

@@ -66,7 +66,8 @@ class DHCPD:
         if self.mode_debug:
             self.logger.setLevel(logging.DEBUG)
 
-        self.logger.debug('NOTICE: DHCP server started in debug mode. DHCP server is using the following:')
+        self.logger.info("NOTICE: DHCP server starting on %s:%d" % (self.ip, self.port))
+        self.logger.debug('DHCP server is using the following:')
         self.logger.debug('  DHCP Server IP: {}'.format(self.ip))
         self.logger.debug('  DHCP Server Port: {}'.format(self.port))
         self.logger.debug('  DHCP Lease Range: {} - {}'.format(self.offerfrom, self.offerto))
@@ -244,6 +245,7 @@ class DHCPD:
 
     def listen(self):
         '''Main listen loop'''
+        self.logger.info("DHCP service running")
         while True:
             if self.running == False:
                 self.logger.info("Closing.")
