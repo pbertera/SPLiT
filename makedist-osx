@@ -1,0 +1,8 @@
+#!/bin/bash
+
+rm -rf dist
+VERSIONER_PYTHON_PREFER_32_BIT=yes
+pyinstaller --icon img/SPLiT.ico --onefile SPLiT.py
+
+mv dist/SPLiT dist/SPLiT_OSX
+
