@@ -119,7 +119,7 @@ This tool is designed for training and debuggin purpose only, HTTP and TFTP serv
 
 ## TODO
 
-[x] PnP server
-[]  Embed a syslog server
-[]  Ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
-[]  Python 3 support
+- [x] PnP server
+- [ ]  Embed a syslog server
+- [ ]  Ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
+- [ ]  Python 3 support
