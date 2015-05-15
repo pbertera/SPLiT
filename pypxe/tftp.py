@@ -268,7 +268,7 @@ class TFTPD:
             # remove complete clients to select doesn't fail
             map(self.ongoing.remove, [client for client in self.ongoing if client.dead])
             try:
-                rlist, _, _ = select.select([self.sock] + [client.sock for client in self.ongoing if not client.dead], [], [], 0)
+                rlist, _, _ = select.select([self.sock] + [client.sock for client in self.ongoing if not client.dead], [], [], self.timeout)
             except Exception, e:
                 self.logger.error("Error during select()")
                 break
