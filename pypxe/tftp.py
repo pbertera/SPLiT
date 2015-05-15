@@ -26,7 +26,7 @@ class Client:
         self.ip = parent.ip
         self.message, self.address = mainsock.recvfrom(1024)
         self.logger = parent.logger.getChild('Client.{0}'.format(self.address))
-        self.logger.debug('Recieving request...')
+        self.logger.info('Recieving request...')
         self.retries = self.default_retries
         self.block = 1
         self.blksize = 512
@@ -143,6 +143,7 @@ class Client:
             # so forcefully shutdown
             self.complete()
             return
+        self.logger.info('TFTP: GET {filename}'.format(filename=self.filename))
         self.fh = open(self.filename, 'rb')
         self.filesize = os.path.getsize(self.filename)
 
@@ -176,7 +177,7 @@ class Client:
         response += message
         response += chr(0)
         self.sock.sendto(response, self.address)
-        self.logger.debug('Sending {0}: {1} {2}'.format(code, message, filename))
+        self.logger.info('Sending {0}: {1} {2}'.format(code, message, filename))
 
     def complete(self):
         '''
@@ -210,7 +211,7 @@ class Client:
                 if self.filesize % self.blksize == 0:
                     self.block = block + 1
                     self.send_block()
-                self.logger.debug('Completed sending {0}'.format(self.filename))
+                self.logger.info('Completed sending {0}'.format(self.filename))
                 self.complete()
             else:
                 self.block = block + 1
@@ -287,5 +288,4 @@ class TFTPD:
     def shutdown(self):
         self.running = False
         self.sock.close()
-        for i in self.ongoing:
-            self.ongoing[i]['sock'].close()     
+        [client.complete() for client in self.ongoing]
