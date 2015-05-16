@@ -1,0 +1,7 @@
+#!/bin/bash
+
+rm -rf dist
+pyinstaller --icon img/SPLiT.ico --onefile SPLiT.py
+
+mv dist/SPLiT dist/SPLiT_Linux32
+
