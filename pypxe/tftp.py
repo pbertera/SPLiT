@@ -45,7 +45,7 @@ class Client:
         try:
             self.message = self.sock.recv(1024)
         except Exception, e:
-            self.logger.warning("Error during clienrt recv")
+            self.logger.warning("Error during client recv")
         self.handle()
 
     def send_block(self):
