@@ -268,7 +268,7 @@ class TFTPD:
             # remove complete clients to select doesn't fail
             map(self.ongoing.remove, [client for client in self.ongoing if client.dead])
             try:
-                rlist, _, _ = select.select([self.sock] + [client.sock for client in self.ongoing if not client.dead], [], [], self.timeout)
+                rlist, _, _ = select.select([self.sock] + [client.sock for client in self.ongoing if not client.dead], [], [], 0)
             except Exception, e:
                 self.logger.error("Error during select()")
                 break
@@ -281,9 +281,16 @@ class TFTPD:
                         # client socket, so tell the client object it's ready
                         sock.parent.ready()
                 # if we haven't recieved an ACK in timeout time, retry
-                [client.send_block() for client in self.ongoing if client.no_ack()]
+                for client in self.ongoing:
+                    if client.no_ack():
+                        self.logger.warning("Retransmission of block {0}".format(client.block))
+                        client.fh.seek(-client.blksize, 1)
+                        client.send_block() 
                 # if we have run out of retries, kill the client
-                [client.complete() for client in self.ongoing if client.no_retries()]
+                for client in self.ongoing:
+                    if client.no_retries():
+                        self.logger.error("Max retries reached. Closing connection with client {0}".format(client.address))
+                        client.complete()
 
     def shutdown(self):
         self.running = False
