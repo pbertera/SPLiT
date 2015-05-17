@@ -201,13 +201,17 @@ class Client:
             self.newRequest()
         elif opcode == 4:
             [block] = struct.unpack('!H', self.message[2:4])
+            a = block + self.wrap * 65536
+            print "B:%d" % block
+            print "A:%d" % a
+            print "L:%d" % self.lastblock
             if block == 0:
                 self.wrap += 1
             if block < self.block % 65536:
                 self.logger.warning('Ignoring duplicated ACK received for block {0}'.format(self.block))
             elif block > self.block % 65536:
                 self.logger.warning('Ignoring out of sequence ACK received for block {0}'.format(self.block))
-            elif block + self.wrap * 65536 == self.lastblock:
+            elif block + self.wrap * 65536 == self.lastblock or block == self.lastblock:
                 if self.filesize % self.blksize == 0:
                     self.block = block + 1
                     self.send_block()
@@ -230,8 +234,8 @@ class TFTPD:
         self.netboot_directory = server_settings.get('netboot_directory', '.')
         self.mode_debug = server_settings.get('mode_debug', False) # debug mode
         self.logger = server_settings.get('logger', None)
-        self.default_retries = server_settings.get('default_retries', 3)
-        self.timeout = server_settings.get('timeout', 5)
+        self.default_retries = server_settings.get('default_retries', 5)
+        self.timeout = server_settings.get('timeout', 10)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.ip, self.port))
