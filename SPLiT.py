@@ -21,7 +21,6 @@ import threading
 import sys
 import time
 
-import gui
 import utils
 import proxy
 import pnp
@@ -112,6 +111,7 @@ if __name__ == "__main__":
     main_logger.debug("Logfile: %s" % options.logfile)
     
     if not options.terminal:
+        import gui
         import Tkinter as tk
 
         root = tk.Tk()
