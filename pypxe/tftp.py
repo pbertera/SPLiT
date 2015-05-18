@@ -202,9 +202,6 @@ class Client:
         elif opcode == 4:
             [block] = struct.unpack('!H', self.message[2:4])
             a = block + self.wrap * 65536
-            print "B:%d" % block
-            print "A:%d" % a
-            print "L:%d" % self.lastblock
             if block == 0:
                 self.wrap += 1
             if block < self.block % 65536:
