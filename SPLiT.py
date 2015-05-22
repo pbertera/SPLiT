@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#
 #    Copyright 2015 Pietro Bertera <pietro@bertera.it>
 #
 #    This work is based on the https://github.com/tirfil/PySipProxy

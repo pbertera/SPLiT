@@ -268,6 +268,7 @@ class MainFrame:
         self.options.ip_address = self.gui_sip_ip_address.get()
         self.options.sip_port = self.gui_sip_port.get()
         self.options.sip_password = self.gui_sip_password.get()
+        self.options.sip_redirect = self.gui_sip_redirect.get()
     
         self.main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
         self.main_logger.debug("Authentication password: %s" % self.options.sip_password)
