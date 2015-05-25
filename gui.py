@@ -307,7 +307,7 @@ class MainFrame:
         
         self.main_logger.debug("TFTP Server port: %s", self.options.tftp_port)
         try:
-            self.tftp_server = tftp.TFTPD(ip = self.options.ip_address, mode_debug = self.options.debug, logger = self.main_logger, netboot_directory = self.options.tftp_root)
+            self.tftp_server = tftp.TFTPD(ip = self.options.ip_address, port = self.options.tftp_port, mode_debug = self.options.debug, logger = self.main_logger, netboot_directory = self.options.tftp_root)
             self.tftp_server_thread = threading.Thread(name='tftp', target=self.tftp_server.listen)
             self.tftp_server_thread.daemon = True
             self.tftp_server_thread.start()           
