@@ -26,10 +26,10 @@ import time
 import utils
 import proxy
 import pnp
+import http
 
 from pypxe import tftp #PyPXE TFTP service
 from pypxe import dhcp #PyPXE DHCP service
-from pypxe import http #PyPXE HTTP service
 
 DHCP_DEFAULT_BEGIN=''
 DHCP_DEFAULT_END=''
@@ -161,7 +161,7 @@ if __name__ == "__main__":
             
             if options.http:
                 main_logger.info("HTTP: Starting server thread")
-                http_server = http.HTTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, port = options.http_root, work_directory = options.http_root)
+                http_server = http.HTTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, port = options.http_port, work_directory = options.http_root)
                 http_server_thread = threading.Thread(name='http', target=http_server.listen)
                 http_server_thread.daemon = True
                 http_server_thread.start()

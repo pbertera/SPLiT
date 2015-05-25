@@ -7,6 +7,8 @@ This file contains classes and functions that implement the PyPXE HTTP service
 import os
 import logging
 import threading
+import posixpath
+import urllib
 
 try:
     # Python 2.x
@@ -32,10 +34,6 @@ class HTTPDThreadedServer(ThreadingMixIn, HTTPServer):
         self.logger.info("HTTPD server thread shutdown")
         HTTPServer.shutdown(self)
     
-    def log_message(self, format, *args):
-        self.logger.info("%s - - [%s] %s\n" % (self.client_address[0],
-            self.log_date_time_string(),
-            format%args))
 
 class MySimpleHTTPRequestHandler(SimpleHTTPRequestHandler):
 
@@ -45,8 +43,8 @@ class MySimpleHTTPRequestHandler(SimpleHTTPRequestHandler):
         Components that mean special things to the local file system
         (e.g. drive or directory names) are ignored.  (XXX They should
         probably be diagnosed.)
-
         """
+        
         # abandon query parameters
         path = path.split('?',1)[0]
         path = path.split('#',1)[0]
@@ -65,6 +63,13 @@ class MySimpleHTTPRequestHandler(SimpleHTTPRequestHandler):
             path += '/'
         return path
 
+    def log_message(self, format, *args):
+        self.server.logger.info("%s - - [%s] %s" % (self.client_address[0], self.log_date_time_string(), format%args))
+
+    def log_error(self, format, *args):
+        self.server.logger.error("%s - - [%s] %s" % (self.client_address[0], self.log_date_time_string(), format%args))
+
+
 class HTTPD():
     def __init__(self, **serverSettings):
         self.ip = serverSettings.get('ip', '0.0.0.0')
@@ -72,8 +77,7 @@ class HTTPD():
         self.work_directory = serverSettings.get('work_directory', '.')
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.logger =  serverSettings.get('logger', None)
-        
-        #os.chdir(self.work_directory)
+
         handler = MySimpleHTTPRequestHandler
         self.server = HTTPDThreadedServer((self.ip, self.port), handler, self.logger, self.work_directory)
  

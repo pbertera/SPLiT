@@ -25,9 +25,9 @@ from ScrolledText import ScrolledText
 import utils
 import proxy
 import pnp
+import http
 
 from pypxe import tftp
-from pypxe import http
 from pypxe import dhcp
 
 class QueueLogger(logging.Handler):
