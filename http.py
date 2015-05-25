@@ -22,8 +22,9 @@ class HTTPDThreadedServer(ThreadingMixIn, HTTPServer):
 
     allow_reuse_address = True
 
-    def __init__(self, server_address, RequestHandlerClass, logger):
+    def __init__(self, server_address, RequestHandlerClass, logger, path):
         self.logger = logger
+        self.path = path
         HTTPServer.__init__(self, server_address, RequestHandlerClass)
 
     def shutdown(self):
@@ -33,8 +34,36 @@ class HTTPDThreadedServer(ThreadingMixIn, HTTPServer):
     
     def log_message(self, format, *args):
         self.logger.info("%s - - [%s] %s\n" % (self.client_address[0],
-                                         self.log_date_time_string(),
-                                                                      format%args))
+            self.log_date_time_string(),
+            format%args))
+
+class MySimpleHTTPRequestHandler(SimpleHTTPRequestHandler):
+
+    def translate_path(self, path):
+        """Translate a /-separated PATH to the local filename syntax.
+
+        Components that mean special things to the local file system
+        (e.g. drive or directory names) are ignored.  (XXX They should
+        probably be diagnosed.)
+
+        """
+        # abandon query parameters
+        path = path.split('?',1)[0]
+        path = path.split('#',1)[0]
+        # Don't forget explicit trailing slash when normalizing. Issue17324
+        trailing_slash = path.rstrip().endswith('/')
+        path = posixpath.normpath(urllib.unquote(path))
+        words = path.split('/')
+        words = filter(None, words)
+        path = self.server.path
+        for word in words:
+            drive, word = os.path.splitdrive(word)
+            head, word = os.path.split(word)
+            if word in (os.curdir, os.pardir): continue
+            path = os.path.join(path, word)
+        if trailing_slash:
+            path += '/'
+        return path
 
 class HTTPD():
     def __init__(self, **serverSettings):
@@ -44,9 +73,9 @@ class HTTPD():
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.logger =  serverSettings.get('logger', None)
         
-        os.chdir(self.work_directory)
-        handler = SimpleHTTPRequestHandler
-        self.server = HTTPDThreadedServer((self.ip, self.port), handler, self.logger)
+        #os.chdir(self.work_directory)
+        handler = MySimpleHTTPRequestHandler
+        self.server = HTTPDThreadedServer((self.ip, self.port), handler, self.logger, self.work_directory)
  
         # setup logger
         if self.logger == None:
@@ -68,10 +97,14 @@ class HTTPD():
         self.server.shutdown()
 
 if __name__ == '__main__':
-    httpd = HTTPD(ip='127.0.0.1', port=88, mode_debug=True, logger=None)
-    httpd.listen()
+    import sys
+    import time
+    httpd = HTTPD(ip=sys.argv[1], port=int(sys.argv[2]), mode_debug=True, logger=None)
+    #httpd.listen()
     
-    #httpd_thread = threading.Thread(name='http', target=httpd.listen)
-    #httpd_thread.daemon = True
+    httpd_thread = threading.Thread(name='http', target=httpd.listen)
+    httpd_thread.daemon = True
     
-    #httpd_thread.start()
+    httpd_thread.start()
+    while httpd_thread.isAlive():
+        time.sleep(1)

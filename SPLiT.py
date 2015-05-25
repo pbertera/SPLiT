@@ -161,7 +161,7 @@ if __name__ == "__main__":
             
             if options.http:
                 main_logger.info("HTTP: Starting server thread")
-                http_server = http.HTTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, netbootDirectory = options.http_root)
+                http_server = http.HTTPD(ip = options.ip_address, mode_debug = options.debug, logger = main_logger, port = options.http_root, work_directory = options.http_root)
                 http_server_thread = threading.Thread(name='http', target=http_server.listen)
                 http_server_thread.daemon = True
                 http_server_thread.start()
