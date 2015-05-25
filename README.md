@@ -1,10 +1,10 @@
 # SPLiT SIP Phone Learning Tool
 
-SPLiT is a **very simple**, **not performat**, **insecure**, and **non fully RFC compliant** SIP stateless proxy, DHCP, TFTP and HTTP server.
+SPLiT is a **very simple**, **not performant**, **insecure**, and **non fully RFC compliant** SIP stateless proxy, DHCP, TFTP and HTTP server.
 
-There is a lot of very good SIP proxy outside here, don't try to use SPLiT in a production/working environment.
+There are a lot of very good SIP proxies out there, don't try to use SPLiT in a production/working environment.
 
-SPLiT is developed with hackability in mind, the main aim is to reproduce SIP issues, or training / learning purpose.
+SPLiT is developed with hackability in mind, the main target is to reproduce SIP issues, or training / learning purpose.
 
 ## Main features
 
@@ -112,7 +112,7 @@ On windows (in a cmd.exe prompt):
 
 ## Known issues
 
-This tool is designed for training and debuggin purpose only, HTTP and TFTP server doesn't check requests against "path walking" attacks, in order to open a DHCP or TFTP socket the tool must run with admin priviledges.
+This tool is designed for training and debugging purpose only, HTTP and TFTP server doesn't check requests against "path walking" attacks, in order to open a DHCP or TFTP socket the tool must run with admin privileges.
 **Please use it only in trusted environments**
 
 ## TODO
