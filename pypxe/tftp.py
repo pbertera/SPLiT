@@ -35,7 +35,8 @@ class Client:
         self.fh = None
         self.netboot_directory = parent.netboot_directory
         self.filename = ''
-        self.wrap = -1
+        self.wrap = 0
+        self.arm_wrap = False
         
         # message from the main socket
         self.handle()
@@ -53,6 +54,7 @@ class Client:
             Sends the next block of data, setting the timeout and retry
             variables accordingly.
         '''
+        self.fh.seek(self.blksize * (self.block - 1))
         data = self.fh.read(self.blksize)
         # opcode 3 == DATA, wraparound block number
         response = struct.pack('!HH', 3, self.block % 65536)
@@ -202,7 +204,7 @@ class Client:
         elif opcode == 4:
             [block] = struct.unpack('!H', self.message[2:4])
             a = block + self.wrap * 65536
-            if block == 0:
+            if block == 0 and self.arm_wrap:
                 self.wrap += 1
             if block < self.block % 65536:
                 self.logger.warning('Ignoring duplicated ACK received for block {0}'.format(self.block))
@@ -285,7 +287,6 @@ class TFTPD:
                 for client in self.ongoing:
                     if client.no_ack():
                         self.logger.warning("Retransmission of block {0}".format(client.block))
-                        client.fh.seek(-client.blksize, 1)
                         client.send_block() 
                 # if we have run out of retries, kill the client
                 for client in self.ongoing:
