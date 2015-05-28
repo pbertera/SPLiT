@@ -161,36 +161,45 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             else:
                 self.server.main_logger.debug("SIP: URI not found in Registrar: %s leaving the URI unchanged" % uri)
 
-    def removeHeader(self, regex):
+    def removeHeader(self, regex, data=None):
+        """
+        remove a SIP header.
+        - `regex`contains the regex to extract the header
+        - if `data` is defined the `regex`is searched into data, otherwise in self.data
+        """
+        if data == None:
+            read_data = self.data
+        else:
+            read_data = data
         self.server.main_logger.debug("SIP: Removing header with regex %s" % regex.pattern)
         data = []
-        for line in self.data:
+        for line in read_data:
             if not regex.search(line):
                 data.append(line)
             else:
                 self.server.main_logger.debug("SIP: Removed %s" % line)
         return data
 
-    def removeMaxForward(self):
-        return self.removeHeader(rx_maxforward)
+    def removeMaxForward(self, data=None):
+        return self.removeHeader(rx_maxforward, data)
 
-    def removeRouteHeader(self):
-        return self.removeHeader(rx_route)
+    def removeRouteHeader(self, data=None):
+        return self.removeHeader(rx_route, data)
 
-    def removeContact(self):
-        return self.removeHeader(rx_contact)
+    def removeContact(self, data=None):
+        return self.removeHeader(rx_contact, data)
 
-    def removeContentType(self):
-        return self.removeHeader(rx_contenttype)
+    def removeContentType(self, data=None):
+        return self.removeHeader(rx_contenttype, data)
     
-    def removeUserAgent(self):
-        return self.removeHeader(rx_useragent)
+    def removeUserAgent(self, data=None):
+        return self.removeHeader(rx_useragent, data)
     
-    def removeSessionExpires(self):
-        return self.removeHeader(rx_sessionexpires)
+    def removeSessionExpires(self, data=None):
+        return self.removeHeader(rx_sessionexpires, data)
 
-    def removeSupported(self):
-        return self.removeHeader(rx_supported)
+    def removeSupported(self, data=None):
+        return self.removeHeader(rx_supported, data)
     
     def removeContentDisposition(self):
         return self.removeHeader(rx_contentdisposition)
@@ -473,7 +482,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.changeRequestUri()
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
+                #data = self.removeSupported(data)
                 data.insert(1, self.server.recordroute)
+                #data.insert(2, "Route: <sip:%s;transport=UDP;lr>" % destination)
                 text = string.join(data,"\r\n")
                 self.sendTo(text , claddr, socket)
                 self.server.main_logger.debug("SIP: Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
