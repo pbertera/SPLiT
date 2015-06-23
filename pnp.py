@@ -25,11 +25,14 @@ import platform
 rx_subscribe = re.compile("^SUBSCRIBE")
 rx_uri_with_params = re.compile("sip:([^@]*)@([^;>$]*)")
 rx_uri = re.compile("sip:([^@]*)@([^>$]*)")
+rx_addr = re.compile("sip:([^ ;>$]*)")
 rx_code = re.compile("^SIP/2.0 ([^ ]*)")
 rx_request_uri = re.compile("^([^ ]*) sip:([^ ]*?)(;.*)* SIP/2.0")
 rx_event = re.compile("^Event:")
 rx_via = re.compile("^Via:")
 rx_cvia = re.compile("^v:")
+rx_contact = re.compile("^Contact:")
+rx_ccontact = re.compile("^m:")
 
 def hexdump( chars, sep, width ):
     """Dump chars in hex and ascii format
@@ -56,6 +59,7 @@ class pnp_phone(object):
         self.model = mod
         self.fw_version = fw
         self.subscribe = subs
+        self.uri = "sip:%s:%s" % (self.ip_addr, self.sip_port)
 
     def __repr__(self):
         """Gets a string representation of the phone"""
@@ -77,7 +81,7 @@ class SipTracedMcastUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServe
         self.options = options
        
         self.main_logger.info("NOTICE: PnP Server starting on %s:%d and %s:%d." % (server_address[0], server_address[1], self.options.ip_address, self.options.sip_port))
-        
+
         # bind on the right interface where the options.ip_address is
         iface = socket.inet_aton(options.ip_address)
         group = socket.inet_aton(server_address[0])
@@ -127,9 +131,22 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                     l_model_info =line.split(';')
                     new_phone.model = l_model_info[3].split('=')[1][1:-1]
                     new_phone.fw_version = l_model_info[4].split('=')[1][1:-1]
+                if rx_contact.search(line) or rx_ccontact.search(line):
+                    md = rx_uri.search(line)
+                    if md:
+                        new_phone.uri = "sip:%s@%s" % (md.group(1), md.group(2))
+                        self.server.main_logger.debug("PnP: found URI in Contact: %s" % new_phone.uri)
+                    else:
+                        md = rx_addr.search(line)
+                        if md:
+                            new_phone.uri = "sip:" + md.group(1)
+                            self.server.main_logger.debug("PnP: found Address in Contact: %s" % new_phone.uri)
+                        else:
+                            self.server.main_logger.warning("PnP: found Nothing in Contact, using the URI: %s" % new_phone.uri)
             return new_phone
         except Exception, e:
-            self.main_logger("PnP: malformed request, cannot parse")
+            self.server.main_logger.error("PnP: malformed request, cannot parse")
+            print e
             return None    
 
     def get_sip_info(self):
@@ -171,7 +188,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             else:
                 pnp_uri = self.server.options.pnp_uri.format(model = phone.model, mac = '{mac}')
 
-            notify = "NOTIFY sip:%s:%s SIP/2.0\r\n" % (phone.ip_addr, phone.sip_port)
+            notify = "NOTIFY %s SIP/2.0\r\n" % (phone.uri)
             notify += via_header + "\r\n"
             notify += "Max-Forwards: 20\r\n"
             notify += "Contact: <sip:%s:1036;transport=TCP;handler=dum>\r\n" % self.server.options.ip_address
@@ -216,10 +233,13 @@ class UDPHandler(SocketServer.BaseRequestHandler):
 
 if __name__ == '__main__':
     import utils
+    import sys
 
     class Options:
-        ip = "127.0.0.1"
-        pnp_uri = "http://test.com"
+        def __init__(self): 
+            self.ip_address = sys.argv[1]
+            self.pnp_uri = sys.argv[2]
+            self.sip_port = 5060
     
     options = Options()
     
