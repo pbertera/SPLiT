@@ -42,12 +42,31 @@ class DHCPD:
             raise Exception('DHCP pool start undefined')
         if self.offerto == '':
             raise Exception('DHCP pool end undefined')
-        if self.router == '':
-            raise Exception('DHCP router undefined')
-        if self.dnsserver == '':
-            raise Exception('DHCP DNS server undefined')
         if self.broadcast == '':
             raise Exception('DHCP broadcast undefined')
+
+        try:
+            socket.inet_aton(self.offerfrom)
+        except:
+            raise Exception("Invalid DHCP pool start")
+        try:
+            socket.inet_aton(self.offerto)
+        except:
+            raise Exception("Invalid DHCP pool end")
+        try:
+            socket.inet_aton(self.broadcast)
+        except:
+            raise Exception("Invalid DHCP broadcast")
+        if self.dnsserver != '':
+            try:
+                socket.inet_aton(self.dnsserver)
+            except:
+                raise Exception("Invalid DHCP DNS server")
+        if self.router != '':
+            try:
+                socket.inet_aton(self.router)
+            except:
+                raise Exception("Invalid DHCP Gateway")
 
         self.mode_debug = serverSettings.get('mode_debug', False) #debug mode
         self.magic = struct.pack('!I', 0x63825363) #magic cookie
@@ -65,6 +84,11 @@ class DHCPD:
 
         if self.mode_debug:
             self.logger.setLevel(logging.DEBUG)
+
+        if self.router == '':
+            self.logger.warning('DHCP router undefined: DHCP opt.3 will not be sent')
+        if self.dnsserver == '':
+            self.logger.warning('DHCP DNS server undefined: DHCP opt.6 will not be sent')
 
         self.logger.info("NOTICE: DHCP server starting on %s:%d" % (self.ip, self.port))
         self.logger.debug('DHCP server is using the following:')
@@ -86,7 +110,14 @@ class DHCPD:
         
         if os.path.isfile(self.leases_file):
             try:
+                self.logger.info("Reading leases file: %s" % self.leases_file)
                 self.leases = pickle.load(open(self.leases_file, 'r'))
+                try:
+                    for k,v in self.leases.iteritems():
+                        self.logger.info("Imported leases:")
+                        self.logger.info("\t%s - %s" % (self.printMAC(k), v))
+                except Exception, e:
+                    self.logger.error("Cannot read leses file: %s" % e)
             except Exception, e:
                 self.logger.error("Cannot load the leases file: %s" % self.leases_file)
                 self.leases = defaultdict(default_lease)
@@ -94,7 +125,7 @@ class DHCPD:
             #key is mac
             #self.leases = defaultdict(lambda: {'ip': '', 'expire': 0})
             self.leases = defaultdict(default_lease)
-            
+
     def nextIP(self):
         '''
             This method returns the next unleased IP from range;
@@ -167,14 +198,30 @@ class DHCPD:
         #op, htype, hlen, hops, xid
         response =  struct.pack('!BBBB4s', 2, 1, 6, 0, xid)
         response += struct.pack('!HHI', 0, 0, 0) #secs, flags, ciaddr
+        offer = None
         if self.leases[clientmac]['ip']: #OFFER
             offer = self.leases[clientmac]['ip']
+            try:
+                socket.inet_aton(offer)
+            except Exception:
+                self.logger.error('DHCP: Trying to offer an ivalid IP from lease file: %s' % offer)
+                return (clientmac, None) 
+
+            self.logger.info('DHCP Assignment from leases file - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
         else: #ACK
-            offer = self.nextIP()
+            try:
+                offer = self.nextIP()
+                socket.inet_aton(offer)
+            except Exception:
+                self.logger.error('DHCP: Trying to offer an ivalid new IP: %s' % offer)
+                return (clientmac, None) 
+
             self.leases[clientmac]['ip'] = offer
             self.leases[clientmac]['expire'] = time() + 86400
+            self.logger.info("Writing to the leases file: %s" % self.leases_file)
             pickle.dump(self.leases, open(self.leases_file, "wb"))
-            self.logger.debug('New DHCP Assignment - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
+            self.logger.info('New DHCP Assignment - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
+
         response += socket.inet_aton(offer) #yiaddr
         response += socket.inet_aton(self.ip) #siaddr
         response += socket.inet_aton('0.0.0.0') #giaddr
@@ -196,23 +243,31 @@ class DHCPD:
         response = self.tlvEncode(53, chr(opt53)) #message type, offer
         response += self.tlvEncode(54, socket.inet_aton(self.ip)) #DHCP Server
         response += self.tlvEncode(1, socket.inet_aton(self.subnetmask)) #SubnetMask
-        response += self.tlvEncode(3, socket.inet_aton(self.router)) #Router
-        response += self.tlvEncode(6, socket.inet_aton(self.dnsserver)) #DNS
+        if self.router != '':
+            response += self.tlvEncode(3, socket.inet_aton(self.router)) #Router
+        if self.dnsserver != '':
+            response += self.tlvEncode(6, socket.inet_aton(self.dnsserver)) #DNS
         response += self.tlvEncode(51, struct.pack('!I', 86400)) #lease time
        
         if self.fileserver != '':
             #TFTP Server OR HTTP Server; if iPXE, need both
             response += self.tlvEncode(66, self.fileserver)
+            self.logger.info("Encoded option 66: %s" % self.fileserver)
         
         #filename null terminated
         if self.filename != '':
             response += self.tlvEncode(67, self.filename + chr(0))
+            self.logger.info("Encoded option 67: %s" % self.filename)
+
         response += '\xff'
         return response
 
     def dhcpOffer(self, message):
         '''This method responds to DHCP discovery with offer'''
         clientmac, headerResponse = self.craftHeader(message)
+        if headerResponse == None:
+            self.logger.warning("DHCP response not valid, ignoring the request")
+            return
         optionsResponse = self.craftOptions(2, clientmac) #DHCPOFFER
         response = headerResponse + optionsResponse
         self.logger.debug('DHCPOFFER - Sending the following')
@@ -227,6 +282,9 @@ class DHCPD:
     def dhcpAck(self, message):
         '''This method responds to DHCP request with acknowledge'''
         clientmac, headerResponse = self.craftHeader(message)
+        if headerResponse == None:
+            self.logger.warning("DHCP response not valid, ignoring the request")
+            return
         optionsResponse = self.craftOptions(5, clientmac) #DHCPACK
         response = headerResponse + optionsResponse
         self.logger.debug('DHCPACK - Sending the following')
@@ -255,7 +313,7 @@ class DHCPD:
                 break
             try:
                 message, address = self.sock.recvfrom(1024)
-            except error, e:
+            except Exception, e:
                 continue
             try:
                 clientmac = struct.unpack('!28x6s', message[:34])

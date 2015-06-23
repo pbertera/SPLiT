@@ -95,7 +95,8 @@ On windows (in a cmd.exe prompt):
                               DHCP lease fileserver IP (option 66)
         --dhcp-filename=DHCP_FILENAME
                               DHCP lease filename (option 67)
-
+        --dhcp-leasesfile=DHCP_LEASESFILE
+                              DHCP leases file store
 # Screenshots
 
 **Main tab:**
