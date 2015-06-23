@@ -112,6 +112,12 @@ class DHCPD:
             try:
                 self.logger.info("Reading leases file: %s" % self.leases_file)
                 self.leases = pickle.load(open(self.leases_file, 'r'))
+                try:
+                    for k,v in self.leases.iteritems():
+                        self.logger.info("Imported leases:")
+                        self.logger.info("\t%s - %s" % (self.printMAC(k), v))
+                except Exception, e:
+                    self.logger.error("Cannot read leses file: %s" % e)
             except Exception, e:
                 self.logger.error("Cannot load the leases file: %s" % self.leases_file)
                 self.leases = defaultdict(default_lease)
