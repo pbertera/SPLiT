@@ -42,10 +42,6 @@ class DHCPD:
             raise Exception('DHCP pool start undefined')
         if self.offerto == '':
             raise Exception('DHCP pool end undefined')
-        if self.router == '':
-            raise Exception('DHCP router undefined')
-        if self.dnsserver == '':
-            raise Exception('DHCP DNS server undefined')
         if self.broadcast == '':
             raise Exception('DHCP broadcast undefined')
 
@@ -65,6 +61,11 @@ class DHCPD:
 
         if self.mode_debug:
             self.logger.setLevel(logging.DEBUG)
+
+        if self.router == '':
+            self.logger.warning('DHCP router undefined: DHCP opt.3 will not be sent')
+        if self.dnsserver == '':
+            self.logger.warning('DHCP DNS server undefined: DHCP opt.6 will not be sent')
 
         self.logger.info("NOTICE: DHCP server starting on %s:%d" % (self.ip, self.port))
         self.logger.debug('DHCP server is using the following:')
@@ -86,6 +87,7 @@ class DHCPD:
         
         if os.path.isfile(self.leases_file):
             try:
+                self.logger.info("Reading leases file: %s" % self.leases_file)
                 self.leases = pickle.load(open(self.leases_file, 'r'))
             except Exception, e:
                 self.logger.error("Cannot load the leases file: %s" % self.leases_file)
@@ -94,7 +96,7 @@ class DHCPD:
             #key is mac
             #self.leases = defaultdict(lambda: {'ip': '', 'expire': 0})
             self.leases = defaultdict(default_lease)
-            
+
     def nextIP(self):
         '''
             This method returns the next unleased IP from range;
@@ -169,12 +171,15 @@ class DHCPD:
         response += struct.pack('!HHI', 0, 0, 0) #secs, flags, ciaddr
         if self.leases[clientmac]['ip']: #OFFER
             offer = self.leases[clientmac]['ip']
+            self.logger.info('DHCP Assignment from leases file - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
         else: #ACK
             offer = self.nextIP()
             self.leases[clientmac]['ip'] = offer
             self.leases[clientmac]['expire'] = time() + 86400
+            self.logger.info("Writing to the leases file: %s" % self.leases_file)
             pickle.dump(self.leases, open(self.leases_file, "wb"))
-            self.logger.debug('New DHCP Assignment - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
+            self.logger.info('New DHCP Assignment - MAC: {MAC} -> IP: {IP}'.format(MAC = self.printMAC(clientmac), IP = self.leases[clientmac]['ip']))
+
         response += socket.inet_aton(offer) #yiaddr
         response += socket.inet_aton(self.ip) #siaddr
         response += socket.inet_aton('0.0.0.0') #giaddr
@@ -196,17 +201,22 @@ class DHCPD:
         response = self.tlvEncode(53, chr(opt53)) #message type, offer
         response += self.tlvEncode(54, socket.inet_aton(self.ip)) #DHCP Server
         response += self.tlvEncode(1, socket.inet_aton(self.subnetmask)) #SubnetMask
-        response += self.tlvEncode(3, socket.inet_aton(self.router)) #Router
-        response += self.tlvEncode(6, socket.inet_aton(self.dnsserver)) #DNS
+        if self.router != '':
+            response += self.tlvEncode(3, socket.inet_aton(self.router)) #Router
+        if self.dnsserver != '':
+            response += self.tlvEncode(6, socket.inet_aton(self.dnsserver)) #DNS
         response += self.tlvEncode(51, struct.pack('!I', 86400)) #lease time
        
         if self.fileserver != '':
             #TFTP Server OR HTTP Server; if iPXE, need both
             response += self.tlvEncode(66, self.fileserver)
+            self.logger.info("Encoded option 66: %s" % self.fileserver)
         
         #filename null terminated
         if self.filename != '':
             response += self.tlvEncode(67, self.filename + chr(0))
+            self.logger.info("Encoded option 67: %s" % self.filename)
+
         response += '\xff'
         return response
 
