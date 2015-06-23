@@ -100,6 +100,8 @@ if __name__ == "__main__":
             help='DHCP lease fileserver IP (option 66)')
     opt.add_option('--dhcp-filename', dest='dhcp_filename', default='', action='store',
             help='DHCP lease filename (option 67)')
+    opt.add_option('--dhcp-leasesfile', dest='dhcp_leasesfile', default='dhcp_leases.dat', action='store',
+            help='DHCP leases file store')
 
     options, args = opt.parse_args(sys.argv[1:])
 
@@ -177,7 +179,8 @@ if __name__ == "__main__":
                         dnsserver = options.dhcp_dns,
                         broadcast = options.dhcp_bcast,
                         fileserver = options.dhcp_fileserver,
-                        filename = options.dhcp_filename)
+                        filename = options.dhcp_filename,
+                        leases_file = options.dhcp_leasesfile)
                 dhcp_server_thread = threading.Thread(name='dhcp', target=dhcp_server.listen)
                 dhcp_server_thread.daemon = True
                 dhcp_server_thread.start()

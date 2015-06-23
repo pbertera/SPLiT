@@ -343,7 +343,8 @@ class MainFrame:
                         dnsserver = self.options.dhcp_dns,
                         broadcast = self.options.dhcp_bcast,
                         fileserver = self.options.dhcp_fileserver,
-                        filename = self.options.dhcp_filename)
+                        filename = self.options.dhcp_filename,
+                        leases_file = self.options.dhcp_leasesfile)
             self.dhcp_server_thread = threading.Thread(name='dhcp', target=self.dhcp_server.listen)
             self.dhcp_server_thread.daemon = True
             self.dhcp_server_thread.start()
