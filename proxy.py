@@ -575,8 +575,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             elif rx_update.search(request_uri):
                 self.processNonInvite()
             elif rx_info.search(request_uri):
-                self.sendResponse("200 0K")
-                #self.processNonInvite()
+                #self.sendResponse("200 0K")
+                self.processNonInvite()
             elif rx_subscribe.search(request_uri):
                 self.processNonInvite()
                 #self.sendResponse("200 0K")
