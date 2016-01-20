@@ -68,6 +68,11 @@ On windows (in a cmd.exe prompt):
                               Default registration expires (default: 3600)
         --sip-password=SIP_PASSWORD
                               Authentication password (default: protected)
+        --sip-exposedip=SIP_EXPOSED_IP
+                        Exposed/Public IP to use into the Record-Route header
+        --sip-exposedport=SIP_EXPOSED_PORT
+                        Exposed/Public port to use into the Record-Route
+                        header
         --pnp                 Enable the PnP server
         --pnp-uri=PNP_URI     Configure the PnP URL
         --tftp                Enable the TFTP server
