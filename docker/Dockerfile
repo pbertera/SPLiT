@@ -8,7 +8,7 @@ RUN apk update && apk add         python bash curl
 RUN mkdir /opt && cd /opt && curl -L -k ${SPLIT_SRC} | tar xzvf -
 WORKDIR /opt/SPLiT-${VER}
 
-ADD wrapper.sh /opt/SPLiT-${VER}
+ADD wrapper.sh /opt/SPLiT-${VER}/
 
 ENTRYPOINT ["./wrapper.sh"]
 
