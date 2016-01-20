@@ -62,7 +62,11 @@ if __name__ == "__main__":
             help='Default registration expires (default: 3600)')
     opt.add_option('--sip-password', dest='sip_password', type='string', default='protected',
             help='Authentication password (default: protected)')
-    
+    opt.add_option('--sip-exposedip', dest='sip_exposed_ip', type='string', default=None,
+            help='Exposed/Public IP to use into the Record-Route header')
+    opt.add_option('--sip-exposedport', dest='sip_exposed_port', type='int', default=None,
+            help='Exposed/Public port to use into the Record-Route header')
+
     opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
             help='Enable the PnP server')
     opt.add_option('--pnp-uri', dest='pnp_uri', default='http://provisioning.snom.com/{model}/{model}.php?mac={mac}', action='store',
