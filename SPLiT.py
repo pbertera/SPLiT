@@ -66,6 +66,8 @@ if __name__ == "__main__":
             help='Exposed/Public IP to use into the Record-Route header')
     opt.add_option('--sip-exposedport', dest='sip_exposed_port', type='int', default=None,
             help='Exposed/Public port to use into the Record-Route header')
+    opt.add_option('--sip-customheader', dest='custom_headers', type='string', action='append', default=None,
+            help='Add a custom SIP header to the forwarded request: <method>:<URI-regex>:<SIP-Header')
 
     opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
             help='Enable the PnP server')

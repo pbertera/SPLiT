@@ -414,7 +414,38 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         self.server.registrar[fromm]=[contact,self.socket,self.client_address,validity]
         self.debugRegister()
         self.sendResponse("200 0K")
-    
+
+    def add_headers(function):
+        def _add_headers(self, *args, **kwargs):
+            if len(self.server.options.custom_headers) > 0:
+                self.server.main_logger.debug('Adding custom headers')
+                for full_header in self.server.options.custom_headers:
+                    md = rx_request_uri.search(self.data[0])
+                    if md:
+                        method = md.group(1)
+                        uri = md.group(2)
+                    else:
+                        self.server.main_logger.debug("SIP: Received code, ignoring")
+                        return
+                    conf_header_method = full_header.split(':')[0]
+                    conf_header_uri_r = full_header.split(':')[1]
+                    conf_header_value = ':'.join(full_header.split(':')[2:])
+                    
+                    if conf_header_method.upper() == method.upper() or conf_header_method == '*':
+                        self.server.main_logger.debug("SIP: Matched custom method '%s' against '%s'" % (conf_header_method, method))
+                        try:
+                            match = re.match(conf_header_uri_r, uri)
+                        except:
+                            self.server.main_logger.error("SIP: Invalid regex: '%s'" % conf_header_uri_r)
+                            match = None
+                        if match:
+                            self.server.main_logger.debug("SIP: Matched custom header regex '%s' against '%s' URI" % (conf_header_uri_r, uri))
+                            self.server.main_logger.debug("SIP: Adding header '%s'" % conf_header_value)
+                            self.data.insert(2, conf_header_value)
+
+            return function(self)
+        return _add_headers
+
     def is_redirect(function):
         def _is_redirect(self, *args, **kwargs):
             if self.server.options.sip_redirect:
@@ -474,6 +505,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             return function(self)
         return _is_redirect
 
+    @add_headers
     @is_redirect
     def processInvite(self):
         self.server.main_logger.debug("SIP: INVITE received")
@@ -498,10 +530,11 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.server.main_logger.debug("SIP: Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
                 self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
             else:
-                self.sendResponse("480 Temporarily Unavailable")
+                self.sendResponse("404 Not Found")
         else:
             self.sendResponse("500 Server Internal Error")
                 
+    @add_headers
     @is_redirect
     def processAck(self):
         self.server.main_logger.info("SIP: ACK received: %s" % self.data[0])
@@ -517,6 +550,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("SIP: Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
+    @add_headers
     @is_redirect
     def processNonInvite(self):
         self.server.main_logger.info("SIP: NonInvite received: %s" % self.data[0])

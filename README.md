@@ -73,6 +73,9 @@ On windows (in a cmd.exe prompt):
         --sip-exposedport=SIP_EXPOSED_PORT
                         Exposed/Public port to use into the Record-Route
                         header
+        --sip-customheader=CUSTOM_HEADERS
+                        Add a custom SIP header to the forwarded request:
+                        <method>:<URI-regex>:<SIP-Header
         --pnp                 Enable the PnP server
         --pnp-uri=PNP_URI     Configure the PnP URL
         --tftp                Enable the TFTP server
@@ -102,6 +105,28 @@ On windows (in a cmd.exe prompt):
                               DHCP lease filename (option 67)
         --dhcp-leasesfile=DHCP_LEASESFILE
                               DHCP leases file store
+
+The arguments *--sip-exposedport* and *--sip-exposedip* allows you to configure the *Record-Route* added to the forwarded request.
+
+## Adding custom headers
+
+Using the switch *--sip-customheader* you can add one or more SIP headers to forwarded requests, you can filter on the SIP method and the destination URI.
+The *--sip-customheader* value is a strig composed by 3 token separated by the *:* character:
+
+- first token represent the SIP method (use * to match all)
+- second token must contain a valid regex, the regex is evaluated against the request SIP URI
+- the third token contains the SIP header (header name + header value)
+
+### Example:
+
+    ./SPLiT.py -i 172.16.18.15 -d -t --sip-customheader="INVITE:^.{4,}@.*$:Alert-Info: <http://www.notused.com>;info=alert-external" --sip-customheader="INVITE:^.{3,3}@.*$:Alert-Info: <http://www.notused.com>;info=alert-internal" --sip-customheader="*:.*:X-Forwarded-from: SPLiT Proxy"
+
+Using this command SPLiT will:
+
+- add the custom header *Alert-Info: <http://www.notused.com>;info=alert-external* only to the *INVITE* requests sent to all the SIP URI with len greater or equal to 4.
+- add the custom header *Alert-Info: <http://www.notused.com>;info=alert-internal* only to the *INVITE* requests sent to all the SIP URI with len lesser than 3.
+- add the custom header *X-Forwarded-from: SPLiT Proxy* to all the requests sent to all the SIP URI
+
 # Screenshots
 
 **Main tab:**
