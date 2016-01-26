@@ -11,6 +11,7 @@ SPLiT is developed with hackability in mind, the main target is to reproduce SIP
 - SIP Registrar with challenge authentication
 - SIP Stateless Proxy or Redirect server mode
 - SIP UDP only suppport
+- SIP custom headers (via CLI only at the moment)
 - Embedded SIP Multicast Plug&Play provisioining server
 - Embedded DHCP server with 66 and 67 options support
 - Embedded HTTP server
