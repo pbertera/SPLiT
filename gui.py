@@ -200,7 +200,14 @@ class MainFrame:
         tk.Label(self.settings_frame, text="Password:").grid(row=row, column=0, sticky=tk.W)
         tk.Entry(self.settings_frame, textvariable=self.gui_sip_password, width=15).grid(row=row, column=1, sticky=tk.W)
         row = row + 1
- 
+
+        #self.gui_sip_custom_headers = tk.StringVar()
+        tk.Label(self.settings_frame, text="Custom Headers:").grid(row=row, column=0, sticky=tk.W)
+        self.gui_sip_custom_headers = ScrolledText(self.settings_frame, height=10, bg='beige')
+        self.gui_sip_custom_headers.insert(0.0, '\n'.join(self.options.sip_custom_headers).rstrip())
+        self.gui_sip_custom_headers.grid(row=row, column=1, columnspan=3, sticky=tk.W)
+        row = row + 1
+
         self.sip_control_button = tk.Button(self.settings_frame, text="Start SIP Proxy", command=self.start_sip_proxy)
         self.sip_control_button.grid(row=row, column=0, sticky=tk.N)
         
@@ -269,7 +276,8 @@ class MainFrame:
         self.options.sip_port = self.gui_sip_port.get()
         self.options.sip_password = self.gui_sip_password.get()
         self.options.sip_redirect = self.gui_sip_redirect.get()
-    
+        self.options.sip_custom_headers = self.gui_sip_custom_headers.get(0.0, tk.END).splitlines()
+
         self.main_logger.debug("Writing SIP messages in %s log file" % self.options.sip_logfile)
         self.main_logger.debug("Authentication password: %s" % self.options.sip_password)
         self.main_logger.debug("Logfile: %s" % self.options.logfile)

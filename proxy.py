@@ -119,6 +119,7 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (rr_ip, rr_port)
         self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
         self.main_logger.info("NOTICE: SIP Proxy starting on %s:%d" % (server_address[0], server_address[1]))
+        #self.main_logger.debug("SIP: Config dump: %s" % self.options)
 
 class UDPHandler(SocketServer.BaseRequestHandler):   
 
@@ -417,28 +418,32 @@ class UDPHandler(SocketServer.BaseRequestHandler):
 
     def add_headers(function):
         def _add_headers(self, *args, **kwargs):
-            if len(self.server.options.custom_headers) > 0:
-                self.server.main_logger.debug('Adding custom headers')
-                for full_header in self.server.options.custom_headers:
+            if len(self.server.options.sip_custom_headers) > 0:
+                for full_header in self.server.options.sip_custom_headers:
                     md = rx_request_uri.search(self.data[0])
                     if md:
                         method = md.group(1)
                         uri = md.group(2)
                     else:
-                        self.server.main_logger.debug("SIP: Received code, ignoring")
-                        return
+                        self.server.main_logger.debug("SIP: Custom headers: received code, ignoring")
+                        return function(self)
+
                     conf_header_method = full_header.split(':')[0]
-                    conf_header_uri_r = full_header.split(':')[1]
-                    conf_header_value = ':'.join(full_header.split(':')[2:])
-                    
+                    try:
+                        conf_header_uri_r = full_header.split(':')[1]
+                        conf_header_value = ':'.join(full_header.split(':')[2:])
+                    except IndexError:
+                        self.server.main_logger.error("SIP: Invalid custom header value: '%s'" % full_header)
+                        continue
+
                     if conf_header_method.upper() == method.upper() or conf_header_method == '*':
                         self.server.main_logger.debug("SIP: Matched custom method '%s' against '%s'" % (conf_header_method, method))
                         try:
                             match = re.match(conf_header_uri_r, uri)
                         except:
                             self.server.main_logger.error("SIP: Invalid regex: '%s'" % conf_header_uri_r)
-                            match = None
-                        if match:
+                            continue
+                        if match: 
                             self.server.main_logger.debug("SIP: Matched custom header regex '%s' against '%s' URI" % (conf_header_uri_r, uri))
                             self.server.main_logger.debug("SIP: Adding header '%s'" % conf_header_value)
                             self.data.insert(2, conf_header_value)
@@ -552,8 +557,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 
     @add_headers
     @is_redirect
-    def processNonInvite(self):
-        self.server.main_logger.info("SIP: NonInvite received: %s" % self.data[0])
+    def processGenericRequest(self):
+        self.server.main_logger.info("SIP: Request received: %s" % self.data[0])
         origin = self.getOrigin()
         if len(origin) == 0 or not self.server.registrar.has_key(origin):
             self.server.main_logger.debug("SIP: Origin not found: %s" % origin)
@@ -603,29 +608,29 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             elif rx_ack.search(request_uri):
                 self.processAck()
             elif rx_bye.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_cancel.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_options.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_message.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_refer.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_prack.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_update.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_info.search(request_uri):
                 #self.sendResponse("200 0K")
-                self.processNonInvite()
+                self.processGenericRequest()
             elif rx_subscribe.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
                 #self.sendResponse("200 0K")
             elif rx_publish.search(request_uri):
                 self.sendResponse("200 0K")
             elif rx_notify.search(request_uri):
-                self.processNonInvite()
+                self.processGenericRequest()
                 #self.sendResponse("200 0K")
             elif rx_code.search(request_uri):
                 self.processCode()

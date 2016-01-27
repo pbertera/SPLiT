@@ -63,51 +63,51 @@ if __name__ == "__main__":
     opt.add_option('--sip-password', dest='sip_password', type='string', default='protected',
             help='Authentication password (default: protected)')
     opt.add_option('--sip-exposedip', dest='sip_exposed_ip', type='string', default=None,
-            help='Exposed/Public IP to use into the Record-Route header')
+            help='Exposed/Public IP to use into the Record-Route header, default: the local IP')
     opt.add_option('--sip-exposedport', dest='sip_exposed_port', type='int', default=None,
-            help='Exposed/Public port to use into the Record-Route header')
-    opt.add_option('--sip-customheader', dest='custom_headers', type='string', action='append', default=None,
-            help='Add a custom SIP header to the forwarded request: <method>:<URI-regex>:<SIP-Header')
+            help='Exposed/Public port to use into the Record-Route header, default: the local SIP port')
+    opt.add_option('--sip-customheader', dest='sip_custom_headers', type='string', action='append', default=[],
+            help='Add a custom SIP header to the forwarded request: <method>:<URI-regex>:<SIP-Header, default: none')
 
     opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
-            help='Enable the PnP server')
+            help='Enable the PnP server, default: disabled')
     opt.add_option('--pnp-uri', dest='pnp_uri', default='http://provisioning.snom.com/{model}/{model}.php?mac={mac}', action='store',
             help='Configure the PnP URL')
 
     opt.add_option('--tftp', dest='tftp', default=False, action='store_true',
-            help='Enable the TFTP server')
+            help='Enable the TFTP server, default: disabled')
     opt.add_option('--tftp-root', dest='tftp_root', type='string', default='tftp', action='store',
             help='TFTP server root directory (default: tftp)')
     opt.add_option('--tftp-port', dest='tftp_port', type='int', default=69, action='store',
             help='TFTP server port (default: 69)')
     
     opt.add_option('--http', dest='http', default=False, action='store_true',
-            help='Enable the HTTP server')
+            help='Enable the HTTP server, default: disabled')
     opt.add_option('--http-root', dest='http_root', default='http', action='store',
             help='HTTP server root directory (default: http)')
     opt.add_option('--http-port', dest='http_port', default=80, action='store',
             help='HTTP server port (default: 80)')
 
     opt.add_option('--dhcp', dest='dhcp', default=False, action='store_true',
-            help='Enable the DHCP server')
+            help='Enable the DHCP server, default: disabled')
     opt.add_option('--dhcp-begin', dest='dhcp_begin', default=DHCP_DEFAULT_BEGIN, action='store',
-            help='DHCP lease range start')
+            help='DHCP lease range start, default: none')
     opt.add_option('--dhcp-end', dest='dhcp_end', default=DHCP_DEFAULT_END, action='store',
-            help='DHCP lease range end')
+            help='DHCP lease range end, default: none')
     opt.add_option('--dhcp-subnetmask', dest='dhcp_subnetmask', default=DHCP_DEFAULT_SUBNETMASK, action='store',
-            help='DHCP lease subnet mask')
+            help='DHCP lease subnet mask, default: none')
     opt.add_option('--dhcp-gateway', dest='dhcp_gateway', default=DHCP_DEFAULT_GW, action='store',
-            help='DHCP lease gateway')
+            help='DHCP lease gateway, default: none')
     opt.add_option('--dhcp-dns', dest='dhcp_dns', default=DHCP_DEFAULT_DNS, action='store',
-            help='DHCP lease DNS')
+            help='DHCP lease DNS, default: none')
     opt.add_option('--dhcp-bcast', dest='dhcp_bcast', default=DHCP_DEFAULT_BCAST, action='store',
-            help='DHCP lease broadcast')
+            help='DHCP lease broadcast, default: none')
     opt.add_option('--dhcp-fileserver', dest='dhcp_fileserver', default='', action='store',
-            help='DHCP lease fileserver IP (option 66)')
+            help='DHCP lease fileserver IP (option 66), default: none')
     opt.add_option('--dhcp-filename', dest='dhcp_filename', default='', action='store',
-            help='DHCP lease filename (option 67)')
+            help='DHCP lease filename (option 67), default: none')
     opt.add_option('--dhcp-leasesfile', dest='dhcp_leasesfile', default='dhcp_leases.dat', action='store',
-            help='DHCP leases file store')
+            help='DHCP leases file store, default: dhcp_leases.dat')
 
     options, args = opt.parse_args(sys.argv[1:])
 
@@ -119,10 +119,16 @@ if __name__ == "__main__":
     main_logger.debug("SIP: Writing SIP messages in %s log file" % options.sip_logfile)
     main_logger.debug("SIP: Authentication password: %s" % options.sip_password)
     main_logger.debug("Logfile: %s" % options.logfile)
-    
+
+    if not options.terminal:
+        try:
+	    import Tkinter as tk
+	except ImportError:
+	    main_logger.error("Tk library not installed, falling back to teminal mode")
+	    options.terminal = True
+
     if not options.terminal:
         import gui
-        import Tkinter as tk
 
         root = tk.Tk()
         app = gui.MainApplication(root, options, main_logger)
