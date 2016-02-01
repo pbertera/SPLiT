@@ -70,13 +70,15 @@ On windows (in a cmd.exe prompt):
         --sip-password=SIP_PASSWORD
                               Authentication password (default: protected)
         --sip-exposedip=SIP_EXPOSED_IP
-                        Exposed/Public IP to use into the Record-Route header
+                              Exposed/Public IP to use into the Record-Route header
         --sip-exposedport=SIP_EXPOSED_PORT
-                        Exposed/Public port to use into the Record-Route
-                        header
+                              Exposed/Public port to use into the Record-Route
+                              header
         --sip-customheader=CUSTOM_HEADERS
-                        Add a custom SIP header to the forwarded request:
-                        <method>:<URI-regex>:<SIP-Header
+                              Add a custom SIP header to the forwarded request:
+                              <method>:<URI-regex>:<SIP-Header
+        --sip-authenticatedreq=AUTHENTICATED_REQUESTS
+                              Request the authentication for the specified requests
         --pnp                 Enable the PnP server
         --pnp-uri=PNP_URI     Configure the PnP URL
         --tftp                Enable the TFTP server
@@ -111,20 +113,21 @@ On windows (in a cmd.exe prompt):
 
 * ***-t*** Run the software in terminal mode withouth graphical UI, **default:** run in GUI mode
 * ***-d*** Run in debug mode, very verbose, **default:** debug is disabled
-* ***-i <IP_address>*** Binds all the service on the local IP *<IP_Address>*, default: 127.0.0.1
-* ***-l <log_file>*** Wite the logs into *<log_file>*, **default:** no logfile, logs are sent to stdout
+* ***-i \<IP_address>*** Binds all the service on the local IP *\<IP_Address>*, default: 127.0.0.1
+* ***-l \<log_file>*** Wite the logs into *\<log_file>*, **default:** no logfile, logs are sent to stdout
 
 
 ## SIP Proxy options
 
 * ***--sip-redirect*** Act as a SIP redirect: instead forwarding the requests reply with a SIP 302 Moved, the Contact contains the destination URI, **default:** disabled
-* ***--sip-port <SIP_port>*** Specify the SIP port to use, **default:** 5060
-* ***--sip-log <SIP_log_file>*** Write the SIP log into the file *<SIP_log_file>*, **default:** send the messages to stdout
-* ***--sip-expires <expires_value>*** Default registration Expires header value, default: 3600
-* ***--sip-password <SIP_password>*** SIP password, **default:** *protected*
-* ***--sip-exposedip <IP_address>*** IP address to report into the *Record-Route* header, **default:** the local IP address
-* ***--sip-exposedport <SIP_port>*** SIP port to report into the Record-Route* header, **default:** the local SIP port
-* ***--sip-customheader <Custom_header_rule>*** Add a custom SIP header to all the request matching the filter defined into this option, see below, **defaut:** none
+* ***--sip-port \<SIP_port>*** Specify the SIP port to use, **default:** 5060
+* ***--sip-log \<SIP_log_file>*** Write the SIP log into the file *<\SIP_log_file>*, **default:** send the messages to stdout
+* ***--sip-expires \<expires_value>*** Default registration Expires header value, default: 3600
+* ***--sip-password \<SIP_password>*** SIP password, **default:** *protected*
+* ***--sip-exposedip \<IP_address>*** IP address to report into the *Record-Route* header, **default:** the local IP address
+* ***--sip-exposedport \<SIP_port>*** SIP port to report into the *Record-Route* header, **default:** the local SIP port
+* ***--sip-customheader \<Custom_header_rule>*** Add a custom SIP header to all the request matching the filter defined into this option, see below, **defaut:** none
+* **sip-authenticatedreq \<SIP-request>** Request a Proxy-Authentication challange for all the \<SIP_request> requests (eg. INVITE), **default:** none
 
 ### Adding SIP custom headers
 
@@ -151,32 +154,32 @@ Using this command SPLiT will:
 ## SIP PnP Server options
 
 * ***--pnp*** Enable the Plug&Play server, **default:** disabled
-* ***--pnp-uri <PnP_URI>*** Plug&Play provisioning URI, **default:** *http://provisioning.snom.com/{model}/{model}.php?mac={mac}*
+* ***--pnp-uri \<PnP_URI>*** Plug&Play provisioning URI, **default:** *http://provisioning.snom.com/{model}/{model}.php?mac={mac}*
 
 ## TFTP Server options
 
 * ***--tftp*** Enable the TFTP server, **default:** disabled
-* ***--tftp-root <TFTP_root_dir>*** TFTP server root directory: all the file and folders contained in *<TFTP_root_dir>* will be accessible via TFTP. If an absolute path isn't provided the directory will be resolved starting from the process current path, **default:** *tftp*
-* ***--tftp-port <TFTP_port>*** TFTP server port: the TFTP server will bind to the *<TFTP_port* UDP port, **default:** *69*
+* ***--tftp-root \<TFTP_root_dir>*** TFTP server root directory: all the file and folders contained in *\<TFTP_root_dir>* will be accessible via TFTP. If an absolute path isn't provided the directory will be resolved starting from the process current path, **default:** *tftp*
+* ***--tftp-port \<TFTP_port>*** TFTP server port: the TFTP server will bind to the *\<TFTP_port* UDP port, **default:** *69*
 
 ## HTTP Server options
 
 * ***--http*** Enable the HTTP server, **default:** disabled
-* ***--http-root <HTTP_root_dir>*** HTTP server root directory: all the file and folders contained in *<HTTP_root_dir>* will be accessible via HTTP. If an absolute path isn't provided the directory will be resolved starting from the process current path, **default:** *http*
-* ***--http-port <HTTP_port>*** HTTP server port: the HTTP server will bind to the *<TFTP_port* TCP port, **default:** *80*
+* ***--http-root \<HTTP_root_dir>*** HTTP server root directory: all the file and folders contained in *\<HTTP_root_dir>* will be accessible via HTTP. If an absolute path isn't provided the directory will be resolved starting from the process current path, **default:** *http*
+* ***--http-port \<HTTP_port>*** HTTP server port: the HTTP server will bind to the *\<TFTP_port* TCP port, **default:** *80*
 
 ## DHCP Server options
 
 * ***--dhcp*** Enable the DHCP server, **default:** disabled
-* ***--dhcp-begin <DHCP_BEGIN>*** Start address, DHCP leases will be assigned starting from *<DHCP_BEGIN>*, **default:** none
-* ***--dhcp-end <DHCP_END>*** End address, DHCP leases will be assigned up to the *<DHCP_END>*, **default:** none
-* ***--dhcp-subnetmask <DHCP_Subnet_mask>*** Subnet mask to provided to the DHCP clients, **default:** none
-* ***--dhcp-gateway <DHCP_Gateway>*** Gateway provided to the clients, **default:** none
-* ***--dhcp-dns <DHCP_Dns>*** DNS server provided to the clients, **default:** none
-* ***--dhcp-bcast <DHCP_Broadcast>*** Broadcast address provided to the clients, **default:** none
-* ***--dhcp-fileserver <OPT-66_Value>*** DHCP option 66 value, **default:** none
-* ***--dhcp-filename <OPT-67_Value>*** DHCP option 67 value, **default:** none
-* ***--dhcp-leasesfile <DHCP_leasesfile>*** DHCP server will save the leases into the file specified by *<DHCP_leasesfile>*, **default:** *dhcp_leases.dat*
+* ***--dhcp-begin \<DHCP_BEGIN>*** Start address, DHCP leases will be assigned starting from *\<DHCP_BEGIN>*, **default:** none
+* ***--dhcp-end \<DHCP_END>*** End address, DHCP leases will be assigned up to the *\<DHCP_END>*, **default:** none
+* ***--dhcp-subnetmask \<DHCP_Subnet_mask>*** Subnet mask to provided to the DHCP clients, **default:** none
+* ***--dhcp-gateway \<DHCP_Gateway>*** Gateway provided to the clients, **default:** none
+* ***--dhcp-dns \<DHCP_Dns>*** DNS server provided to the clients, **default:** none
+* ***--dhcp-bcast \<DHCP_Broadcast>*** Broadcast address provided to the clients, **default:** none
+* ***--dhcp-fileserver \<OPT-66_Value>*** DHCP option 66 value, **default:** none
+* ***--dhcp-filename \<OPT-67_Value>*** DHCP option 67 value, **default:** none
+* ***--dhcp-leasesfile \<DHCP_leasesfile>*** DHCP server will save the leases into the file specified by *\<DHCP_leasesfile>*, **default:** *dhcp_leases.dat*
 
 
 
@@ -202,6 +205,8 @@ This tool is designed for training and debugging purpose only, HTTP and TFTP ser
 ## TODO
 
 - [x] PnP server
-- [ ]  Embed a syslog server
-- [ ]  Ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
+- [x] Custom headers
+- [x] Proxy-Authentication
+- [ ] Embed a syslog server
+- [ ] Ability send arbitrary SIP messages to the peers (check-sync, MESSAGE, etc..)
 - [ ]  Python 3 support

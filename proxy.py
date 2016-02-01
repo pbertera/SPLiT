@@ -64,6 +64,7 @@ rx_code = re.compile("^SIP/2.0 ([^ ]*)")
 #rx_rr = re.compile("^Record-Route:")
 rx_request_uri = re.compile("^([^ ]*) sip:([^ ]*?)(;.*)* SIP/2.0")
 rx_route = re.compile("^Route:")
+rx_record_route = re.compile("^Record-Route:")
 rx_contentlength = re.compile("^Content-Length:")
 rx_ccontentlength = re.compile("^l:")
 rx_contenttype = re.compile("^Content-Type:")
@@ -74,6 +75,7 @@ rx_rport = re.compile(";rport$|;rport;")
 rx_contact_expires = re.compile("expires=([^;$]*)")
 rx_expires = re.compile("^Expires: (.*)$")
 rx_authorization = re.compile("^Authorization: +\S{6} (.*)")
+rx_proxy_authorization = re.compile("^Proxy-Authorization: +\S{6} (.*)")
 rx_kv= re.compile("([^=]*)=(.*)")
 
 def hexdump( chars, sep, width ):
@@ -194,6 +196,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
 
     def removeRouteHeader(self, data=None):
         return self.removeHeader(rx_route, data)
+
+    def removeRecordRouteHeader(self, data=None):
+        return self.removeHeader(rx_record_route, data)
 
     def removeContact(self, data=None):
         return self.removeHeader(rx_contact, data)
@@ -336,6 +341,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
         auth_index = 0
         data = []
         size = len(self.data)
+
         for line in self.data:
             if rx_to.search(line) or rx_cto.search(line):
                 md = rx_uri.search(line)
@@ -365,17 +371,10 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 #print authorization
             index += 1
 
-        #if rx_invalid.search(contact) or rx_invalid2.search(contact):
-        #    if self.server.registrar.has_key(fromm):
-        #        del self.server.registrar[fromm]
-        #    self.sendResponse("488 Not Acceptable Here")    
-        #    return
-            
         # remove Authorization header for response
         if auth_index > 0:
             self.data.pop(auth_index)
-           
-                
+
         if len(authorization)> 0 and self.server.auth.has_key(fromm):
             nonce = self.server.auth[fromm]
             if not self.checkAuthorization(authorization, self.server.options.sip_password, nonce):
@@ -388,33 +387,84 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             self.data.insert(6,header)
             self.sendResponse("401 Unauthorized")
             return
-        
+
         if len(contact_expires) > 0:
             expires = int(contact_expires)
         elif len(header_expires) > 0:
             expires = int(header_expires)
-        
+
         if expires == 0:
             if self.server.registrar.has_key(fromm):
                 del self.server.registrar[fromm]
                 self.sendResponse("200 0K")
                 return
+
         elif expires == None:
             expires = self.server.options.sip_expires
             header = "Expires: %s" % expires
             self.data.insert(6, header)
-        
+
         if expires != 0:
             now = int(time.time())
             validity = now + expires
-            
-    
+
         self.server.main_logger.info("SIP: Registration: From: %s - Contact: %s" % (fromm,contact))
         self.server.main_logger.debug("SIP: Registration: Client address: %s:%s" % self.client_address)
         self.server.main_logger.debug("SIP: Registration: Expires= %d" % expires)
         self.server.registrar[fromm]=[contact,self.socket,self.client_address,validity]
         self.debugRegister()
         self.sendResponse("200 0K")
+
+    def is_authenticated(function):
+        def _is_authenticated(self, *args, **kwargs):
+            proxy_auth = ""
+            index = 0
+            auth_index = 0
+
+            md = rx_request_uri.search(self.data[0])
+            if md:
+                method = md.group(1)
+
+            if method not in self.server.options.authenticated_requests:
+                return function(self)
+
+            self.server.main_logger.debug("SIP: Request %s received, checking auth" % method)
+
+            for line in self.data:
+                if rx_to.search(line) or rx_cto.search(line):
+                    md = rx_uri.search(line)
+                    if md:
+                        fromm = "%s@%s" % (md.group(1),md.group(2))
+                md = rx_proxy_authorization.search(line)
+                if md:
+                    proxy_auth= md.group(1)
+                    auth_index = index
+                index += 1
+
+            # remove Authorization header for response
+            if auth_index > 0:
+                self.data.pop(auth_index)
+
+            if len(proxy_auth)> 0 and self.server.auth.has_key(fromm):
+                nonce = self.server.auth[fromm]
+                if not self.checkAuthorization(proxy_auth, self.server.options.sip_password, nonce, method=method):
+                    self.server.main_logger.debug("SIP: Unauthentication failure")
+                    self.data = self.removeContact()
+                    self.sendResponse("403 Forbidden")
+                    return
+            else:
+                nonce = generateNonce(32)
+                self.server.auth[fromm]=nonce
+                header = "Proxy-Authenticate: Digest realm=\"%s\", nonce=\"%s\"" % ("dummy",nonce)
+                self.data.insert(6,header)
+                self.server.main_logger.debug("SIP: Requesting authentication")
+                self.data = self.removeContact()
+                self.sendResponse("401 Unauthorized")
+                return
+
+            self.server.main_logger.debug("SIP: Request authenticated")
+            return function(self)
+        return _is_authenticated
 
     def add_headers(function):
         def _add_headers(self, *args, **kwargs):
@@ -510,6 +560,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             return function(self)
         return _is_redirect
 
+    @is_authenticated
     @add_headers
     @is_redirect
     def processInvite(self):
@@ -527,9 +578,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.changeRequestUri()
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
-                #data = self.removeSupported(data)
                 data.insert(1, self.server.recordroute)
-                #data.insert(2, "Route: <sip:%s;transport=UDP;lr>" % destination)
                 text = string.join(data,"\r\n")
                 self.sendTo(text , claddr, socket)
                 self.server.main_logger.debug("SIP: Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
@@ -538,11 +587,20 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.sendResponse("404 Not Found")
         else:
             self.sendResponse("500 Server Internal Error")
-                
+
+    @is_authenticated
     @add_headers
     @is_redirect
     def processAck(self):
         self.server.main_logger.info("SIP: ACK received: %s" % self.data[0])
+        for line in self.data:
+            md = rx_route.search(line)
+            if md:
+                route = md.group(1)
+                if route != self.server.recordroute:
+                    self.server.main_logger.info("No Route header found, ignoring ACK")
+                    return
+
         destination = self.getDestination()
         if len(destination) > 0:
             self.server.main_logger.info("SIP: ACK: destination %s" % destination)
@@ -554,7 +612,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("SIP: Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
-                
+
+    @is_authenticated
     @add_headers
     @is_redirect
     def processGenericRequest(self):
@@ -598,7 +657,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
                 
     def processRequest(self):
-        #print "processRequest"
         if len(self.data) > 0:
             request_uri = self.data[0]
             if rx_register.search(request_uri):

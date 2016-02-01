@@ -68,6 +68,8 @@ if __name__ == "__main__":
             help='Exposed/Public port to use into the Record-Route header, default: the local SIP port')
     opt.add_option('--sip-customheader', dest='sip_custom_headers', type='string', action='append', default=[],
             help='Add a custom SIP header to the forwarded request: <method>:<URI-regex>:<SIP-Header, default: none')
+    opt.add_option('--sip-authenticatedreq', dest='authenticated_requests', type='string', action='append', default=[],
+            help='Request the authentication for the specified requests')
 
     opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
             help='Enable the PnP server, default: disabled')
