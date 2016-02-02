@@ -44,7 +44,7 @@ rx_from = re.compile("^From:")
 rx_cfrom = re.compile("^f:")
 rx_to = re.compile("^To:")
 rx_cto = re.compile("^t:")
-rx_tag = re.compile(";tag")
+rx_tag = re.compile(";tag=(.*)")
 rx_contact = re.compile("^Contact:")
 rx_ccontact = re.compile("^m:")
 rx_useragent = re.compile("^User-Agent:")
@@ -63,7 +63,7 @@ rx_code = re.compile("^SIP/2.0 ([^ ]*)")
 #rx_callid = re.compile("Call-ID: (.*)$")
 #rx_rr = re.compile("^Record-Route:")
 rx_request_uri = re.compile("^([^ ]*) sip:([^ ]*?)(;.*)* SIP/2.0")
-rx_route = re.compile("^Route:")
+rx_route = re.compile("^Route: (.*)")
 rx_record_route = re.compile("^Record-Route:")
 rx_contentlength = re.compile("^Content-Length:")
 rx_ccontentlength = re.compile("^l:")
@@ -77,6 +77,8 @@ rx_expires = re.compile("^Expires: (.*)$")
 rx_authorization = re.compile("^Authorization: +\S{6} (.*)")
 rx_proxy_authorization = re.compile("^Proxy-Authorization: +\S{6} (.*)")
 rx_kv= re.compile("([^=]*)=(.*)")
+
+local_tag = '123456-SPLiT'
 
 def hexdump( chars, sep, width ):
     """Dump chars in hex and ascii format
@@ -299,7 +301,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             data.append(line)
             if rx_to.search(line) or rx_cto.search(line):
                 if not rx_tag.search(line):
-                    data[index] = "%s%s" % (line,";tag=123456")
+                    data[index] = "%s%s" % (line,";tag=%s" % local_tag)
             if rx_via.search(line) or rx_cvia.search(line):
                 # rport processing
                 if rx_rport.search(line):
@@ -448,7 +450,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             if len(proxy_auth)> 0 and self.server.auth.has_key(fromm):
                 nonce = self.server.auth[fromm]
                 if not self.checkAuthorization(proxy_auth, self.server.options.sip_password, nonce, method=method):
-                    self.server.main_logger.debug("SIP: Unauthentication failure")
+                    self.server.main_logger.debug("SIP: Authentication failure")
                     self.data = self.removeContact()
                     self.sendResponse("403 Forbidden")
                     return
@@ -461,7 +463,6 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.data = self.removeContact()
                 self.sendResponse("401 Unauthorized")
                 return
-
             self.server.main_logger.debug("SIP: Request authenticated")
             return function(self)
         return _is_authenticated
@@ -592,15 +593,17 @@ class UDPHandler(SocketServer.BaseRequestHandler):
     @add_headers
     @is_redirect
     def processAck(self):
+        route = None
         self.server.main_logger.info("SIP: ACK received: %s" % self.data[0])
+        #FIXME: really stupid way to idenitify an ACK belonging to a locally generated code.
         for line in self.data:
-            md = rx_route.search(line)
-            if md:
-                route = md.group(1)
-                if route != self.server.recordroute:
-                    self.server.main_logger.info("No Route header found, ignoring ACK")
-                    return
-
+            if rx_to.search(line) or rx_cto.search(line):
+                md = rx_tag.search(line)
+                if md:
+                    tag = md.group(1)
+                    if tag == local_tag:
+                        self.server.main_logger.warning("SIP: ACK to local code, ignoring")
+                        return
         destination = self.getDestination()
         if len(destination) > 0:
             self.server.main_logger.info("SIP: ACK: destination %s" % destination)
@@ -649,9 +652,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             self.server.main_logger.debug("SIP: Code: origin %s" % origin)
             if self.server.registrar.has_key(origin):
                 socket,claddr = self.getSocketInfo(origin)
-                data = self.removeRouteHeader()
-                self.server.main_logger.debug("SIP: Code received: %s" % self.data[0])
                 data = self.removeTopVia()
+                data = self.removeRouteHeader(data)
+                self.server.main_logger.debug("SIP: Code received: %s" % self.data[0])
                 text = string.join(data,"\r\n")
                 self.sendTo(text,claddr, socket)
                 self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
