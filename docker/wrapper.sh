@@ -7,7 +7,7 @@ fi
 
 if [ -z $LOCAL_IP ];then
 	# FIXME: too stupid and error-prone
-	LOCAL_IP=$(awk 'NR==1{print $1}' /etc/hosts)
+    LOCAL_IP=$(getent hosts $(hostname)| cut -d \  -f1)
 fi
 
 echo LOCAL_IP is ${LOCAL_IP}
