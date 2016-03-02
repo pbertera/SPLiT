@@ -127,7 +127,7 @@ On windows (in a cmd.exe prompt):
 * ***--sip-exposedip \<IP_address>*** IP address to report into the *Record-Route* header, **default:** the local IP address
 * ***--sip-exposedport \<SIP_port>*** SIP port to report into the *Record-Route* header, **default:** the local SIP port
 * ***--sip-customheader \<Custom_header_rule>*** Add a custom SIP header to all the request matching the filter defined into this option, see below, **defaut:** none
-* **sip-authenticatedreq \<SIP-request>** Request a Proxy-Authentication challange for all the \<SIP_request> requests (eg. INVITE), **default:** none
+* ***sip-authenticatedreq \<SIP-request>*** Request a Proxy-Authentication challange for all the \<SIP_request> requests (eg. INVITE), **default:** none
 
 ### Adding SIP custom headers
 

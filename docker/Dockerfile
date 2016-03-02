@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-ENV VER 1.1.2
+ENV VER 1.1.3
 ENV SPLIT_SRC https://github.com/pbertera/SPLiT/archive/${VER}.tar.gz
 
 RUN apk update && apk add         python bash curl

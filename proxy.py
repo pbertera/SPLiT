@@ -437,7 +437,7 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                     md = rx_uri.search(line)
                     if md:
                         fromm = "%s@%s" % (md.group(1),md.group(2))
-                md = rx_proxy_authorization.search(line)
+                md = rx_proxy_authorization.search(line) or rx_authorization.search(line)
                 if md:
                     proxy_auth= md.group(1)
                     auth_index = index
@@ -615,6 +615,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("SIP: Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
+            else:
+                self.server.main_logger.error("SIP: ACK not proxied: destination not found")
 
     @is_authenticated
     @add_headers
