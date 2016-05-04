@@ -87,7 +87,7 @@ if __name__ == "__main__":
             help='Enable the HTTP server, default: disabled')
     opt.add_option('--http-root', dest='http_root', default='http', action='store',
             help='HTTP server root directory (default: http)')
-    opt.add_option('--http-port', dest='http_port', default=80, action='store',
+    opt.add_option('--http-port', dest='http_port', default=80, type="int", action='store',
             help='HTTP server port (default: 80)')
 
     opt.add_option('--dhcp', dest='dhcp', default=False, action='store_true',
