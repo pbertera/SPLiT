@@ -70,6 +70,8 @@ if __name__ == "__main__":
             help='Add a custom SIP header to the forwarded request: <method>:<URI-regex>:<SIP-Header, default: none')
     opt.add_option('--sip-authenticatedreq', dest='authenticated_requests', type='string', action='append', default=[],
             help='Request the authentication for the specified requests')
+    opt.add_option('--sip-no-record-route', dest='sip_no_record_route', default=False, action='store_true',
+            help='Don\'t add the Record-Route header')
 
     opt.add_option('--pnp', dest='pnp', default=False, action='store_true',
             help='Enable the PnP server, default: disabled')
@@ -152,7 +154,8 @@ if __name__ == "__main__":
             if options.sip_redirect:
                 main_logger.debug("SIP: Working in redirect server mode")
             else:
-                main_logger.debug("SIP: Using the Record-Route header: %s" % sip_proxy.recordroute) 
+                if not options.sip_no_record_route:
+                    main_logger.debug("SIP: Using the Record-Route header: %s" % sip_proxy.recordroute)
                 main_logger.debug("SIP: Using the top Via header: %s" % sip_proxy.topvia) 
         
             main_logger.info("SIP: Starting serving SIP requests on %s:%d, press CTRL-C for exit." % (options.ip_address, options.sip_port))

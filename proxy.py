@@ -112,15 +112,16 @@ class SipTracedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.allow_reuse_address = True
         self.registrar = {}
         self.auth = {}
-        if self.options.sip_exposed_ip:
-            rr_ip = self.options.sip_exposed_ip
-        else:
-            rr_ip = server_address[0]
-        if self.options.sip_exposed_port:
-            rr_port = self.options.sip_exposed_port
-        else:
-            rr_port = server_address[1]
-        self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (rr_ip, rr_port)
+        if not self.options.sip_no_record_route:
+            if self.options.sip_exposed_ip:
+                rr_ip = self.options.sip_exposed_ip
+            else:
+                rr_ip = server_address[0]
+            if self.options.sip_exposed_port:
+                rr_port = self.options.sip_exposed_port
+            else:
+                rr_port = server_address[1]
+            self.recordroute = "Record-Route: <sip:%s:%d;lr>" % (rr_ip, rr_port)
         self.topvia = "Via: SIP/2.0/UDP %s:%d" % (server_address[0], server_address[1])
         self.main_logger.info("NOTICE: SIP Proxy starting on %s:%d" % (server_address[0], server_address[1]))
         #self.main_logger.debug("SIP: Config dump: %s" % self.options)
@@ -579,7 +580,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.changeRequestUri()
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
-                data.insert(1, self.server.recordroute)
+                if not self.server.options.sip_no_record_route:
+                    data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text , claddr, socket)
                 self.server.main_logger.debug("SIP: Forwarding INVITE to %s:%d" % (claddr[0], claddr[1]))
@@ -611,7 +613,8 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 socket,claddr = self.getSocketInfo(destination)
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
-                data.insert(1, self.server.recordroute)
+                if not self.server.options.sip_no_record_route:
+                    data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("SIP: Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
@@ -636,8 +639,9 @@ class UDPHandler(SocketServer.BaseRequestHandler):
                 self.changeRequestUri()
                 self.data = self.addTopVia()
                 data = self.removeRouteHeader()
-                #insert Record-Route
-                data.insert(1, self.server.recordroute)
+                if not self.server.options.sip_no_record_route:
+                    #insert Record-Route
+                    data.insert(1, self.server.recordroute)
                 text = string.join(data,"\r\n")
                 self.sendTo(text, claddr, socket)
                 self.server.sip_logger.debug("Send to: %s:%d (%d bytes):\n\n%s" % (claddr[0], claddr[1], len(text),text))
