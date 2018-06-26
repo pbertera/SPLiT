@@ -30,6 +30,10 @@ rx_code = re.compile("^SIP/2.0 ([^ ]*)")
 rx_request_uri = re.compile("^([^ ]*) sip:([^ ]*?)(;.*)* SIP/2.0")
 rx_event = re.compile("^Event:")
 rx_via = re.compile("^Via:")
+rx_to = re.compile("^To:")
+rx_from = re.compile("^From:")
+rx_call_id = re.compile("^Call-ID:")
+rx_cseq = re.compile("^CSeq:")
 rx_cvia = re.compile("^v:")
 rx_contact = re.compile("^Contact:")
 rx_ccontact = re.compile("^m:")
@@ -126,7 +130,10 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             for line in self.data:
                 if rx_via.search(line) or rx_cvia.search(line):
                     new_phone.ip_addr = line[17:].split(';')[0].split(':')[0]
-                    new_phone.sip_port = line[17:].split(';')[0].split(':')[1]
+                    try:
+                        new_phone.sip_port = line[17:].split(';')[0].split(':')[1]
+                    except Exception, e:
+                        new_phone.sip_port = "5060"
                 if rx_event.search(line):
                     l_model_info =line.split(';')
                     new_phone.model = l_model_info[3].split('=')[1][1:-1]
@@ -150,20 +157,33 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             return None    
 
     def get_sip_info(self):
-        lines = self.data
-        # Some SIP info we need
-        call_id = lines[4][9:]
-        cseq = lines[5][6]
-        via_header = lines[1]
-        from_header = lines[2]
-        to_header = lines[3]
-    
-        return (call_id, cseq, via_header, from_header, to_header)   
+        for line in self.data:
+            md = rx_call_id.search(line)
+            if md:
+                call_id_header = line
+
+            md = rx_cseq.search(line)
+            if md:
+                cseq_header = line
+
+            md = rx_via.search(line)
+            if md:
+                via_header = line
+
+            md = rx_from.search(line)
+            if md:
+                from_header = line
+
+            md = rx_to.search(line)
+            if md:
+                to_header = line
+
+        return (call_id_header, cseq_header, via_header, from_header, to_header)
 
     def processPnP(self):
         self.server.main_logger.info("PnP: Reqest received: %s" % self.data[0])
         phone = self.parse()
-        (call_id, cseq, via_header, from_header, to_header) = self.get_sip_info()
+        (call_id_header, cseq_header, via_header, from_header, to_header) = self.get_sip_info()
 
         if phone:
             # Create a socket to send data
@@ -173,11 +193,11 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             # If a phone has been recognized first send 200 OK
             ok_response = "SIP/2.0 200 OK\r\n"
             ok_response += via_header + "\r\n"
-            ok_response += "Contact: <sip:" + phone.ip_addr + ":" + phone.sip_port + ";transport=tcp;handler=dum>\r\n"
+            ok_response += "Contact: <sip:" + phone.ip_addr + ":" + phone.sip_port + ">\r\n"
             ok_response += to_header + "\r\n"
             ok_response += from_header + "\r\n"
-            ok_response += "Call-ID: %s\r\n" % call_id
-            ok_response += "CSeq: %s SUBSCRIBE\r\nExpires: 0\r\nContent-Length: 0\r\n" % cseq
+            ok_response += call_id_header + "\r\n"
+            ok_response += cseq_header + "\r\nExpires: 0\r\nContent-Length: 0\r\n"
             
             if self.sendTo(ok_response, (phone.ip_addr, int(phone.sip_port))):
                 self.server.sip_logger.debug("PnP: Send to: %s:%s (%d bytes):\n\n%s" % (phone.ip_addr, phone.sip_port, len(ok_response),ok_response))
@@ -188,14 +208,16 @@ class UDPHandler(SocketServer.BaseRequestHandler):
             else:
                 pnp_uri = self.server.options.pnp_uri.format(model = phone.model, mac = '{mac}')
 
+            cseq = cseq_header.split(":")[1].strip().split(" ")[0]
+            cseq = int(cseq) + 1
             notify = "NOTIFY %s SIP/2.0\r\n" % (phone.uri)
             notify += via_header + "\r\n"
             notify += "Max-Forwards: 20\r\n"
-            notify += "Contact: <sip:%s:1036;transport=TCP;handler=dum>\r\n" % self.server.options.ip_address
+            notify += "Contact: <sip:%s:%s>\r\n" % (self.server.options.ip_address, self.server.options.sip_port)
             notify += to_header + "\r\n"
             notify += from_header + "\r\n"
-            notify += "Call-ID: %s\r\n" % call_id
-            notify += "CSeq: 3 NOTIFY\r\n"
+            notify += call_id_header + "\r\n"
+            notify += "CSeq: %d NOTIFY\r\n" % cseq
             notify += "Content-Type: application/url\r\n"
             notify += "Subscription-State: terminated;reason=timeout\r\n"
             notify += "Event: ua-profile;profile-type=\"device\";vendor=\"OEM\";model=\"OEM\";version=\"7.1.19\"\r\n"
